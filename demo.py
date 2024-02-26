@@ -1,20 +1,24 @@
+from typing import Iterator
 from amaranth import Module
 from amaranth.sim import Simulator
+from amaranth.hdl.ast import Statement
 
 from beneater import BenEater
 
 
 m = Module()
 be8 = m.submodules.be8 = BenEater()
-dbus = be8.data_bus
-reg_a = be8.register_a
-reg_b = be8.register_b
-alu = be8.alu
-mar = be8.memory_address_register
-memory = be8.memory
 
 
-def testbench():
+def testbench() -> Iterator[Statement | None]:
+    dbus = be8.data_bus
+    # reg_a = be8.register_a
+    # reg_b = be8.register_b
+    pc = be8.program_counter
+    # mar = be8.memory_address_register
+    # memory = be8.memory
+    # alu = be8.alu
+
     # # ALU demo
     # yield alu.port_a.eq(0x56)
     # yield alu.port_b.eq(0xAA)
@@ -45,21 +49,32 @@ def testbench():
     #     # On each clock, we're doing b+=a; output =b, so this should count sequentially 5 by 5
     #     yield
 
-    # Memory demo
-    yield dbus.select_input("a")
-    yield from dbus.select_outputs("memory output")
-    for addr in range(10):
-        # set A to address squared. store in addr and print
-        yield reg_a.data_out.eq(addr * addr)
-        yield mar.data_out.eq(addr)
+    # # Memory demo
+    # yield dbus.select_input("a")
+    # yield from dbus.select_outputs("memory output")
+    # for addr in range(10):
+    #     # set A to address squared. store in addr and print
+    #     yield reg_a.data_out.eq(addr * addr)
+    #     yield mar.data_out.eq(addr)
+    #     yield
+
+    # yield from dbus.select_outputs("output")
+    # yield dbus.select_input("memory")
+    # for addr in range(10):
+    #     # read and print given address. we should see squares
+    #     yield mar.data_out.eq(addr)
+    #     yield
+
+    # PC Demo
+    yield dbus.select_input("pc")
+    yield from dbus.select_outputs("output")
+    yield pc.count_enable.eq(1)
+    for _ in range(10):
+        yield
+    yield pc.count_enable.eq(0)
+    for _ in range(5):
         yield
 
-    yield from dbus.select_outputs("output")
-    yield dbus.select_input("memory")
-    for addr in range(10):
-        # read and print given address. we should see squares
-        yield mar.data_out.eq(addr)
-        yield
 
 
 sim = Simulator(m)

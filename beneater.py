@@ -1,5 +1,6 @@
 from amaranth.lib import wiring
 from amaranth import Module, Signal
+from counter_register import CounterRegister
 
 from data_bus import DataControlBus
 from register import Register
@@ -16,6 +17,7 @@ class BenEater(wiring.Component):
     def __init__(self) -> None:
         self.register_a = Register(DATA_BUS_WIDTH)
         self.register_b = Register(DATA_BUS_WIDTH)
+        self.program_counter = CounterRegister(ADDRESS_BUS_WIDTH)
         self.instruction_register = Register(DATA_BUS_WIDTH)
 
         self.memory_address_register = Register(ADDRESS_BUS_WIDTH)
@@ -31,6 +33,7 @@ class BenEater(wiring.Component):
             {
                 "a": self.register_a,
                 "b": self.register_b,
+                "pc": self.program_counter,
                 "instruction": self.instruction_register,
                 "memory": self.memory,
                 "alu": self.alu,  # read-only
@@ -38,6 +41,7 @@ class BenEater(wiring.Component):
             {
                 "a": self.register_a,
                 "b": self.register_b,
+                "pc": self.program_counter,
                 "instruction": self.instruction_register,
                 "memory": self.memory,
                 "memory_address": self.memory_address_register,  # write-only
@@ -48,18 +52,21 @@ class BenEater(wiring.Component):
 
     def elaborate(self, platform) -> Module:
         m = Module()
-        m.submodules.data_bus = self.data_bus
-        m.submodules.alu = self.alu
-        m.submodules.memory = self.memory
 
-        for register_name in (
+        # Define submodules
+        for component_name in (
+            "data_bus",
+            "alu",
+            "memory",
+            # Registers
             "register_a",
             "register_b",
+            "program_counter",
             "instruction_register",
             "memory_address_register",
             "output_register",
         ):
-            m.submodules[register_name] = getattr(self, register_name)
+            m.submodules[component_name] = getattr(self, component_name)
 
         # Connect ALU ports to registers:
         m.d.comb += self.alu.port_a.eq(self.register_a.data_out)
