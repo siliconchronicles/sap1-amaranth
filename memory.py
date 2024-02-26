@@ -10,11 +10,11 @@ class RAM(wiring.Component):
     data_out: Signal
     write_enable: Signal
 
-    def __init__(self, address_lines: int, width: int) -> None:
+    def __init__(self, address_lines: int, width: int, program: object = None) -> None:
         self.address_lines = address_lines
         self.width = width
 
-        self.memory = Memory(width=width, depth=1 << address_lines)
+        self.memory = Memory(width=width, depth=1 << address_lines, init=program)
 
         super().__init__(
             dict(

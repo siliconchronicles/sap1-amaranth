@@ -15,11 +15,11 @@ assert ADDRESS_BUS_WIDTH <= DATA_BUS_WIDTH  # addresses are sent on the data bus
 
 
 class BenEater(wiring.Component):
-    def __init__(self) -> None:
+    def __init__(self, program: object = None) -> None:
         self.register_a = Register(DATA_BUS_WIDTH)
         self.register_b = Register(DATA_BUS_WIDTH)
         self.program_counter = CounterRegister(ADDRESS_BUS_WIDTH)
-        self.instruction_register = PartialRegister(DATA_BUS_WIDTH, AD)
+        self.instruction_register = PartialRegister(DATA_BUS_WIDTH, ADDRESS_BUS_WIDTH)
 
         self.memory_address_register = Register(ADDRESS_BUS_WIDTH)
 
@@ -27,7 +27,7 @@ class BenEater(wiring.Component):
 
         self.alu = ALU(DATA_BUS_WIDTH)
 
-        self.memory = RAM(ADDRESS_BUS_WIDTH, DATA_BUS_WIDTH)
+        self.memory = RAM(ADDRESS_BUS_WIDTH, DATA_BUS_WIDTH, program)
 
         self.data_bus = DataControlBus(
             DATA_BUS_WIDTH,
@@ -43,7 +43,7 @@ class BenEater(wiring.Component):
                 "pc": self.program_counter,
                 "instruction": self.instruction_register,
                 "memory": self.memory,
-                "b": self.register_b, # write-only
+                "b": self.register_b,  # write-only
                 "memory_address": self.memory_address_register,  # write-only
                 "output": self.output_register,  # write-only
             },

@@ -7,7 +7,28 @@ from beneater import BenEater
 
 
 m = Module()
-be8 = m.submodules.be8 = BenEater()
+
+MULTIPLY_PROG = [
+    0x31,
+    0x4C,
+    0x2D,
+    0x5F,
+    0x4F,
+    0x5E,
+    0x6C,
+    0x89,
+    0x72,
+    0x2F,
+    0xF0,
+    0x7B,
+    0x00,
+    0x07,
+    0x05,
+    0x00,
+]
+
+
+be8 = m.submodules.be8 = BenEater(MULTIPLY_PROG)
 
 
 def testbench() -> Iterator[Statement | None]:
@@ -65,16 +86,18 @@ def testbench() -> Iterator[Statement | None]:
     #     yield mar.data_out.eq(addr)
     #     yield
 
-    # PC Demo
-    yield dbus.select_input("pc")
-    yield from dbus.select_outputs("output")
-    yield pc.count_enable.eq(1)
-    for _ in range(10):
-        yield
-    yield pc.count_enable.eq(0)
-    for _ in range(5):
-        yield
+    # # PC Demo
+    # yield dbus.select_input("pc")
+    # yield from dbus.select_outputs("output")
+    # yield pc.count_enable.eq(1)
+    # for _ in range(10):
+    #     yield
+    # yield pc.count_enable.eq(0)
+    # for _ in range(5):
+    #     yield
 
+    # Memory init demo
+    yield
 
 
 sim = Simulator(m)

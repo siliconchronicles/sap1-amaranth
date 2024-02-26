@@ -14,7 +14,9 @@ class Register(wiring.Component):
         super().__init__(self.get_ports())
 
     def get_ports(self) -> dict[str, Flow]:
-        return dict(data_in=In(self.width), data_out=Out(self.width), write_enable=In(1))
+        return dict(
+            data_in=In(self.width), data_out=Out(self.width), write_enable=In(1)
+        )
 
     def elaborate(self, platform) -> Module:
         m = Module()
