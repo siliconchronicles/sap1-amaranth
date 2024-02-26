@@ -33,7 +33,6 @@ class BenEater(wiring.Component):
             DATA_BUS_WIDTH,
             {
                 "a": self.register_a,
-                "b": self.register_b,
                 "pc": self.program_counter,
                 "instruction": self.instruction_register,
                 "memory": self.memory,
@@ -41,10 +40,10 @@ class BenEater(wiring.Component):
             },
             {
                 "a": self.register_a,
-                "b": self.register_b,
                 "pc": self.program_counter,
                 "instruction": self.instruction_register,
                 "memory": self.memory,
+                "b": self.register_b, # write-only
                 "memory_address": self.memory_address_register,  # write-only
                 "output": self.output_register,  # write-only
             },
