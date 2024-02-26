@@ -3,6 +3,7 @@ from amaranth import Module, Signal
 from counter_register import CounterRegister
 
 from data_bus import DataControlBus
+from partial_register import PartialRegister
 from register import Register
 from alu import ALU
 from memory import RAM
@@ -18,7 +19,7 @@ class BenEater(wiring.Component):
         self.register_a = Register(DATA_BUS_WIDTH)
         self.register_b = Register(DATA_BUS_WIDTH)
         self.program_counter = CounterRegister(ADDRESS_BUS_WIDTH)
-        self.instruction_register = Register(DATA_BUS_WIDTH)
+        self.instruction_register = PartialRegister(DATA_BUS_WIDTH, ADDRESS_BUS_WIDTH)
 
         self.memory_address_register = Register(ADDRESS_BUS_WIDTH)
 
