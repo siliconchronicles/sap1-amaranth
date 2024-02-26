@@ -3,6 +3,7 @@ from amaranth import Module, Signal
 
 from data_bus import DataControlBus
 from register import Register
+from alu import ALU
 
 
 DATA_BUS_WIDTH = 8
@@ -21,19 +22,22 @@ class BenEater(wiring.Component):
 
         self.output_register = Register(DATA_BUS_WIDTH)
 
+        self.alu = ALU(DATA_BUS_WIDTH)
+
         self.data_bus = DataControlBus(
             DATA_BUS_WIDTH,
             {
                 "a": self.register_a,
                 "b": self.register_b,
                 "instruction": self.instruction_register,
-                "output": self.output_register,
+                "alu": self.alu,
             },
             {
                 "a": self.register_a,
                 "b": self.register_b,
                 "instruction": self.instruction_register,
                 "memory_address": self.memory_address_register,
+                "output": self.output_register,
             },
         )
         super().__init__({})
@@ -41,6 +45,7 @@ class BenEater(wiring.Component):
     def elaborate(self, platform) -> Module:
         m = Module()
         m.submodules.data_bus = self.data_bus
+        m.submodules.alu = self.alu
 
         for register_name in (
             "register_a",
@@ -50,5 +55,9 @@ class BenEater(wiring.Component):
             "output_register",
         ):
             m.submodules[register_name] = getattr(self, register_name)
+
+        # Connect ALU ports to registers:
+        m.d.comb += self.alu.port_a.eq(self.register_a.data_out)
+        m.d.comb += self.alu.port_b.eq(self.register_b.data_out)
 
         return m
