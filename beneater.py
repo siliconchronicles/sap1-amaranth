@@ -1,3 +1,5 @@
+import enum
+
 from amaranth.lib import wiring
 from amaranth import Module, Signal
 from counter_register import CounterRegister
@@ -15,6 +17,9 @@ assert ADDRESS_BUS_WIDTH <= DATA_BUS_WIDTH  # addresses are sent on the data bus
 
 
 class BenEater(wiring.Component):
+
+    uINSTRUCTIONS_PER_INSTRUCTION = 5
+
     def __init__(self, program: object = None) -> None:
         self.register_a = Register(DATA_BUS_WIDTH)
         self.register_b = Register(DATA_BUS_WIDTH)
@@ -50,6 +55,10 @@ class BenEater(wiring.Component):
         )
         super().__init__({})
 
+        # Control
+        self.uinstruction_step = Signal(3)
+        self.control_word = Signal(16)  # 0, default, should generally mean "do nothing"
+
     def elaborate(self, platform) -> Module:
         m = Module()
 
@@ -74,5 +83,28 @@ class BenEater(wiring.Component):
 
         # Connect memory address register to RAM
         m.d.comb += self.memory.address.eq(self.memory_address_register.data_out)
+
+        ## CONTROL
+
+        ## Connect control lines
+        m.d.comb += self.data_bus.active_input.eq(self.control_word[:3])
+        m.d.comb += self.data_bus.active_outputs.eq(self.control_word[3:10])
+        halted = self.control_word[10]  # Just an alias
+        m.d.comb += self.alu.subtract.eq(self.control_word[11])
+        m.d.comb += self.alu.update_flags.eq(self.control_word[12])
+        m.d.comb += self.program_counter.count_enable.eq(self.control_word[13])
+
+        # Do nothing by default, unless instruction logic overrides
+        m.d.sync += self.control_word.eq(0)
+
+        # Microinstruction steps moves forwards/reset unless halted
+        with m.If(~halted):
+            with m.If(self.uinstruction_step == self.uINSTRUCTIONS_PER_INSTRUCTION):
+                m.d.sync += self.uinstruction_step.eq(0)
+            with m.Else():
+                m.d.sync += self.uinstruction_step.eq(self.uinstruction_step + 1)
+        with m.Else():
+            # If halted, stay halted
+            m.d.sync += halted.eq(1)
 
         return m

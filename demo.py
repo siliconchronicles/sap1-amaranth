@@ -96,8 +96,9 @@ def testbench() -> Iterator[Statement | None]:
     # for _ in range(5):
     #     yield
 
-    # Memory init demo
-    yield
+    # Full CPU
+    for _ in range(25):
+        yield
 
 
 sim = Simulator(m)
