@@ -19,7 +19,7 @@ class BenEater(wiring.Component):
         self.register_a = Register(DATA_BUS_WIDTH)
         self.register_b = Register(DATA_BUS_WIDTH)
         self.program_counter = CounterRegister(ADDRESS_BUS_WIDTH)
-        self.instruction_register = PartialRegister(DATA_BUS_WIDTH, ADDRESS_BUS_WIDTH)
+        self.instruction_register = PartialRegister(DATA_BUS_WIDTH, AD)
 
         self.memory_address_register = Register(ADDRESS_BUS_WIDTH)
 

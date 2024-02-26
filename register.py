@@ -1,6 +1,6 @@
 from amaranth import Module, Signal
 from amaranth.lib import wiring
-from amaranth.lib.wiring import In, Out
+from amaranth.lib.wiring import In, Out, Flow
 
 
 class Register(wiring.Component):
@@ -10,9 +10,11 @@ class Register(wiring.Component):
     write_enable: Signal
 
     def __init__(self, width: int) -> None:
-        super().__init__(
-            dict(data_in=In(width), data_out=Out(width), write_enable=In(1))
-        )
+        self.width = width
+        super().__init__(self.get_ports())
+
+    def get_ports(self) -> dict[str, Flow]:
+        return dict(data_in=In(self.width), data_out=Out(self.width), write_enable=In(1))
 
     def elaborate(self, platform) -> Module:
         m = Module()
