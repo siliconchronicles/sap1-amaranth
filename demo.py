@@ -10,6 +10,8 @@ dbus = be8.data_bus
 reg_a = be8.register_a
 reg_b = be8.register_b
 alu = be8.alu
+mar = be8.memory_address_register
+memory = be8.memory
 
 
 def testbench():
@@ -34,14 +36,29 @@ def testbench():
     # yield
 
     # ALU + Data demo
+    # # Set A to 5
+    # yield reg_a.data_out.eq(5)
+    # # Set data bas to read from alu, write into B + output
+    # yield dbus.select_input("alu")
+    # yield from dbus.select_outputs("b output")
+    # for _ in range(10):
+    #     # On each clock, we're doing b+=a; output =b, so this should count sequentially 5 by 5
+    #     yield
 
-    # Set A to 5
-    yield reg_a.data_out.eq(5)
-    # Set data bas to read from alu, write into B + output
-    yield dbus.select_input("alu")
-    yield from dbus.select_outputs("b output")
-    for _ in range(10):
-        # On each clock, we're doing b+=a; output =b, so this should count sequentially 5 by 5
+    # Memory demo
+    yield dbus.select_input("a")
+    yield from dbus.select_outputs("memory output")
+    for addr in range(10):
+        # set A to address squared. store in addr and print
+        yield reg_a.data_out.eq(addr * addr)
+        yield mar.data_out.eq(addr)
+        yield
+
+    yield from dbus.select_outputs("output")
+    yield dbus.select_input("memory")
+    for addr in range(10):
+        # read and print given address. we should see squares
+        yield mar.data_out.eq(addr)
         yield
 
 
