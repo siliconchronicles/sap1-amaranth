@@ -56,7 +56,7 @@ class BenEater(wiring.Component):
         super().__init__({})
 
         # Control
-        self.uinstruction_step = Signal(3)
+        self.u_sequencer = Signal(3)
         self.control_word = Signal(16)  # 0, default, should generally mean "do nothing"
 
     def elaborate(self, platform) -> Module:
@@ -99,10 +99,10 @@ class BenEater(wiring.Component):
 
         # Microinstruction steps moves forwards/reset unless halted
         with m.If(~halted):
-            with m.If(self.uinstruction_step == self.uINSTRUCTIONS_PER_INSTRUCTION):
-                m.d.sync += self.uinstruction_step.eq(0)
+            with m.If(self.u_sequencer == self.uINSTRUCTIONS_PER_INSTRUCTION):
+                m.d.sync += self.u_sequencer.eq(0)
             with m.Else():
-                m.d.sync += self.uinstruction_step.eq(self.uinstruction_step + 1)
+                m.d.sync += self.u_sequencer.eq(self.u_sequencer + 1)
         with m.Else():
             # If halted, stay halted
             m.d.sync += halted.eq(1)
