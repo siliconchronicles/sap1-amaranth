@@ -28,7 +28,7 @@ class RAM(wiring.Component):
     def elaborate(self, platform) -> Module:
         m = Module()
 
-        _read = m.submodules.read_port = self.memory.read_port()
+        _read = m.submodules.read_port = self.memory.read_port(domain="comb")
         _write = m.submodules.write_port = self.memory.write_port()
         m.d.comb += [
             _read.addr.eq(self.address),
