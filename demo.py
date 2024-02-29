@@ -8,7 +8,12 @@ from beneater import BenEater
 
 m = Module()
 
-ADD2_PROG = [0x1E, 0x2F, 0xE0, 0xFF] + [0] * 10 + [28, 14]
+ADD2_PROG = [
+    0x1E,  # LDA E
+    0x2F,  # ADD F
+    0xE0,  # OUT
+    0xFF,  # HLT
+] + [0] * 10 + [28, 14]
 
 MULTIPLY_PROG = [
     0x51,  # LDI 1
@@ -16,7 +21,7 @@ MULTIPLY_PROG = [
     0x1D,  # LDA D
     0x2F,  # ADD F
     0x4F,  # STA F
-    0x2E,  # ADD E
+    0x1E,  # LDA E
     0x3C,  # SUB C
     0x79,  # JZ 9
     0x62,  # JMP 2
@@ -29,8 +34,16 @@ MULTIPLY_PROG = [
     0x00,  # DATA 0
 ]
 
+JUMP_BY_7_PROG = [
+    0x57,  # LDI 7
+    0x4F,  # STA 15
+    0x50,  # LDI 0
+    0x2F,  # ADD 15
+    0xE0,  # OUT
+    0x63,  # JMP 3
+]
 
-be8 = m.submodules.be8 = BenEater(ADD2_PROG)
+be8 = m.submodules.be8 = BenEater(JUMP_BY_7_PROG)
 
 
 def testbench() -> Iterator[Statement | None]:
@@ -99,7 +112,7 @@ def testbench() -> Iterator[Statement | None]:
     #     yield
 
     # Full CPU
-    for _ in range(45):
+    for _ in range(150):
         yield
 
 
