@@ -1,5 +1,5 @@
 from amaranth.lib import wiring
-from amaranth import Module, Signal
+from amaranth import C, Cat, Module, Signal
 from counter_register import CounterRegister
 
 from data_bus import DataControlBus
@@ -7,6 +7,7 @@ from partial_register import PartialRegister
 from register import Register
 from alu import ALU
 from memory import RAM
+import microcode
 
 DATA_BUS_WIDTH = 8
 ADDRESS_BUS_WIDTH = 4
@@ -57,8 +58,7 @@ class BenEater(wiring.Component):
 
         # Control
         self.u_sequencer = Signal(3)
-        self.control_word = Signal(16)  # 0, default, should generally mean "do nothing"
-        self.halted = self.control_word[10]  # Just an alias
+        self.halted = Signal()
 
     def elaborate(self, platform) -> Module:
         m = Module()
@@ -90,15 +90,14 @@ class BenEater(wiring.Component):
 
         ## CONTROL
 
-        ## Connect control lines
-        m.d.comb += self.data_bus.active_input.eq(self.control_word[:3])
-        m.d.comb += self.data_bus.active_outputs.eq(self.control_word[3:10])
-        m.d.comb += self.alu.subtract.eq(self.control_word[11])
-        m.d.comb += self.alu.update_flags.eq(self.control_word[12])
-        m.d.comb += self.program_counter.count_enable.eq(self.control_word[13])
+        # we drive the bus directly from logic, no control word
 
         # Do nothing by default, unless instruction logic overrides
-        m.d.comb += self.control_word.eq(0)
+        m.d.comb += [
+            *self.data_bus.select_outputs(""),
+            self.alu.update_flags.eq(0),
+            self.program_counter.count_enable.eq(0),
+        ]
 
         # Microinstruction steps moves forwards/reset unless halted
         with m.If(~self.halted):
@@ -110,4 +109,33 @@ class BenEater(wiring.Component):
             # If halted, stay halted
             m.d.sync += self.halted.eq(1)
 
+        ## FIXED CONTROL
+        with m.Switch(self.u_sequencer):
+            with m.Case(0):  # MAR <- PC
+                m.d.comb += self.data_bus.select_input("pc")
+                m.d.comb += self.data_bus.select_outputs("memory_address")
+            with m.Case(1):  # IR <- memory && PC++
+                m.d.comb += self.data_bus.select_input("memory")
+                m.d.comb += self.data_bus.select_outputs("instruction")
+                m.d.comb += self.program_counter.count_enable.eq(1)
+            with m.Default():
+                self.decode_and_execute(m)
         return m
+
+    def decode_and_execute(self, m: Module) -> None:
+        """Elaborate decoding and execution into m"""
+
+        # Remove operand
+        encoded_opcode = self.instruction_register.full_value[ADDRESS_BUS_WIDTH:]
+        with m.Switch(Cat(self.u_sequencer, encoded_opcode)):
+            for opcode, uinstructions in microcode.OPCODES.items():
+                for sequence, uinstr in enumerate(uinstructions, 2):
+                    seq_value = C(sequence, self.u_sequencer.shape())
+                    with m.Case(Cat(seq_value, C(opcode.value, 4))):
+                        m.d.comb += self.data_bus.select_input(uinstr.src)
+                        m.d.comb += self.data_bus.select_outputs(uinstr.dst)
+                        if uinstr.halt:
+                            m.d.sync += self.halted.eq(1)
+                        m.d.comb += self.alu.update_flags.eq(uinstr.update_flags)
+                        m.d.comb += self.alu.subtract.eq(uinstr.subtract)
+                        m.d.comb += self.program_counter.count_enable.eq(uinstr.count)
