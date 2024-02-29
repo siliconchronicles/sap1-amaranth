@@ -41,6 +41,21 @@ OPCODES: dict[Mnemonic, list[uInstr]] = {
         uInstr(dst="b", src="memory"),
         uInstr(dst="a", src="alu", update_flags=True),
     ],
+    Mnemonic.SUB: [
+        uInstr(dst="memory_address", src="instruction"),
+        uInstr(dst="b", src="memory"),
+        uInstr(dst="a", src="alu", subtract=True, update_flags=True),
+    ],
+    Mnemonic.STA: [
+        uInstr(dst="memory_address", src="instruction"),
+        uInstr(dst="memory", src="a"),
+    ],
+    Mnemonic.LDI: [
+        uInstr(dst="a", src="instruction"),
+    ],
+    Mnemonic.JMP: [
+        uInstr(dst="pc", src="instruction"),
+    ],
     Mnemonic.OUT: [
         uInstr(dst="output", src="a"),
     ],
