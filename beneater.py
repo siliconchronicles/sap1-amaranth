@@ -58,6 +58,7 @@ class BenEater(wiring.Component):
         # Control
         self.u_sequencer = Signal(3)
         self.control_word = Signal(16)  # 0, default, should generally mean "do nothing"
+        self.halted = self.control_word[10]  # Just an alias
 
     def elaborate(self, platform) -> Module:
         m = Module()
@@ -89,17 +90,16 @@ class BenEater(wiring.Component):
         ## Connect control lines
         m.d.comb += self.data_bus.active_input.eq(self.control_word[:3])
         m.d.comb += self.data_bus.active_outputs.eq(self.control_word[3:10])
-        halted = self.control_word[10]  # Just an alias
         m.d.comb += self.alu.subtract.eq(self.control_word[11])
         m.d.comb += self.alu.update_flags.eq(self.control_word[12])
         m.d.comb += self.program_counter.count_enable.eq(self.control_word[13])
 
         # Do nothing by default, unless instruction logic overrides
-        m.d.sync += self.control_word.eq(0)
+        m.d.comb += self.control_word.eq(0)
 
         # Microinstruction steps moves forwards/reset unless halted
-        with m.If(~halted):
-            with m.If(self.u_sequencer == self.uINSTRUCTIONS_PER_INSTRUCTION):
+        with m.If(~self.halted):
+            with m.If(self.u_sequencer == self.uINSTRUCTIONS_PER_INSTRUCTION - 1):
                 m.d.sync += self.u_sequencer.eq(0)
             with m.Else():
                 m.d.sync += self.u_sequencer.eq(self.u_sequencer + 1)
