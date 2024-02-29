@@ -1,6 +1,13 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 import enum
 from typing import Literal, TypeAlias
+
+
+Flag: TypeAlias = Literal["zero_flag", "carry_flag"]
+FlagValue: TypeAlias = Literal[0, 1]
+Condition: TypeAlias = tuple[Flag, FlagValue]
 
 
 @dataclass
@@ -14,6 +21,9 @@ class uInstr:
     # Other flags
     count: bool = False  # increase PC
     halt: bool = False
+
+    # conditional variants:
+    conditional: dict[Condition, uInstr] | None = None
 
 
 class Mnemonic(enum.Enum):
@@ -55,6 +65,20 @@ OPCODES: dict[Mnemonic, list[uInstr]] = {
     ],
     Mnemonic.JMP: [
         uInstr(dst="pc", src="instruction"),
+    ],
+    Mnemonic.JZ: [
+        uInstr(
+            conditional={
+                ("zero_flag", 1): uInstr(dst="pc", src="instruction"),
+            }
+        ),
+    ],
+    Mnemonic.JC: [
+        uInstr(
+            conditional={
+                ("carry_flag", 1): uInstr(dst="pc", src="instruction"),
+            }
+        ),
     ],
     Mnemonic.OUT: [
         uInstr(dst="output", src="a"),

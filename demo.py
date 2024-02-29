@@ -8,12 +8,16 @@ from beneater import BenEater
 
 m = Module()
 
-ADD2_PROG = [
-    0x1E,  # LDA E
-    0x2F,  # ADD F
-    0xE0,  # OUT
-    0xFF,  # HLT
-] + [0] * 10 + [28, 14]
+ADD2_PROG = (
+    [
+        0x1E,  # LDA E
+        0x2F,  # ADD F
+        0xE0,  # OUT
+        0xFF,  # HLT
+    ]
+    + [0] * 10
+    + [28, 14]
+)
 
 MULTIPLY_PROG = [
     0x51,  # LDI 1
