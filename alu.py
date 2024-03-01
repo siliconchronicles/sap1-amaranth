@@ -26,6 +26,9 @@ class ALU(wiring.Component):
                 zero_flag=Out(1),
             )
         )
+        # Useful for debugging. Combinatorial version of flags, always computed
+        self._carry = Signal()
+        self._zero = Signal()
 
     def elaborate(self, platform) -> Module:
         m = Module()
@@ -33,11 +36,13 @@ class ALU(wiring.Component):
         operand_2 = (self.port_b ^ self.subtract.as_signed()).as_unsigned()
 
         result = self.port_a + operand_2 + self.subtract
+        m.d.comb += self._carry.eq(result[self.width])
+        m.d.comb += self._zero.eq(result[: self.width] == 0)
 
         m.d.comb += self.data_out.eq(result[: self.width])
 
         with m.If(self.update_flags):
-            m.d.sync += self.carry_flag.eq(result[self.width])
-            m.d.sync += self.zero_flag.eq(self.data_out == 0)
+            m.d.sync += self.carry_flag.eq(self._carry)
+            m.d.sync += self.zero_flag.eq(self._zero)
 
         return m
