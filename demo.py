@@ -57,7 +57,23 @@ COUNT_UP_DOWN = [
     1,  # data
 ]
 
-be8 = m.submodules.be8 = BenEater(MULTIPLY_PROG)
+FIBONACCI = [
+    0x51, # LDI 1
+    0x4e, # STA e
+    0x50, # LDI 0
+    0xE0, # OUT
+    0x2E, # ADD e
+    0x4f, # STA f
+    0x1e, # LDA e
+    0x4d, # STA d
+    0x1f, # LDA f
+    0x4e, # STA e
+    0x1d, # LDA d
+    0x70, # JC 0
+    0x63, # JMP 3
+]
+
+be8 = m.submodules.be8 = BenEater(FIBONACCI)
 
 
 def testbench() -> Iterator[Statement | None]:
