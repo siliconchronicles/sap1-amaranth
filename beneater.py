@@ -18,6 +18,8 @@ class BenEater(wiring.Component):
 
     uINSTRUCTIONS_PER_INSTRUCTION = 5
 
+    display: wiring.Out(DATA_BUS_WIDTH)
+
     def __init__(self, program: object = None) -> None:
         self.register_a = Register(DATA_BUS_WIDTH)
         self.register_b = Register(DATA_BUS_WIDTH)
@@ -51,7 +53,7 @@ class BenEater(wiring.Component):
                 "output": self.output_register,  # write-only
             },
         )
-        super().__init__({})
+        super().__init__()
 
         # Control
         self.u_sequencer = Signal(3)
@@ -82,6 +84,9 @@ class BenEater(wiring.Component):
 
         # Connect memory address register to RAM
         m.d.comb += self.memory.address.eq(self.memory_address_register.data_out)
+
+        # Connect display
+        m.d.comb += self.display.eq(self.output_register.data_out)
 
         ## CONTROL
 
