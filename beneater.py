@@ -125,6 +125,20 @@ class BenEater(wiring.Component):
     def decode_and_execute(self, m: Module) -> None:
         """Elaborate decoding and execution into m"""
 
+        def generate(i: microcode.uInstr) -> None:
+            m.d.comb += self.data_bus.select_input(i.src)
+            m.d.comb += self.data_bus.select_outputs(i.dst)
+            if i.halt:
+                m.d.sync += self.halted.eq(1)
+            m.d.comb += self.alu.update_flags.eq(i.update_flags)
+            m.d.comb += self.alu.subtract.eq(i.subtract)
+            m.d.comb += self.program_counter.count_enable.eq(i.count)
+
+            if i.conditional:
+                for (flag, value), ci in i.conditional.items():
+                    with m.If(getattr(self.alu, flag) == value):
+                        generate(ci)
+
         # Remove operand
         encoded_opcode = self.instruction_register.full_value[ADDRESS_BUS_WIDTH:]
         with m.Switch(Cat(self.u_sequencer, encoded_opcode)):
@@ -132,10 +146,4 @@ class BenEater(wiring.Component):
                 for sequence, uinstr in enumerate(uinstructions, 2):
                     seq_value = C(sequence, self.u_sequencer.shape())
                     with m.Case(Cat(seq_value, C(opcode.value, 4))):
-                        m.d.comb += self.data_bus.select_input(uinstr.src)
-                        m.d.comb += self.data_bus.select_outputs(uinstr.dst)
-                        if uinstr.halt:
-                            m.d.sync += self.halted.eq(1)
-                        m.d.comb += self.alu.update_flags.eq(uinstr.update_flags)
-                        m.d.comb += self.alu.subtract.eq(uinstr.subtract)
-                        m.d.comb += self.program_counter.count_enable.eq(uinstr.count)
+                        generate(uinstr)
