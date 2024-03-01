@@ -1,5 +1,3 @@
-import enum
-
 from amaranth.lib import wiring
 from amaranth import Module, Signal
 from counter_register import CounterRegister
@@ -105,6 +103,6 @@ class BenEater(wiring.Component):
                 m.d.sync += self.u_sequencer.eq(self.u_sequencer + 1)
         with m.Else():
             # If halted, stay halted
-            m.d.sync += halted.eq(1)
+            m.d.sync += self.halted.eq(1)
 
         return m

@@ -1,4 +1,4 @@
-from amaranth import Module, Mux, Signal
+from amaranth import Module, Signal
 from amaranth.lib import wiring
 from amaranth.lib.wiring import In, Out
 
