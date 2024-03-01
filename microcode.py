@@ -34,8 +34,8 @@ class Mnemonic(enum.Enum):
     STA = 0x4
     LDI = 0x5
     JMP = 0x6
-    JZ = 0x7
-    JC = 0x8
+    JC = 0x7
+    JZ = 0x8
     OUT = 0xE
     HLT = 0xF
 
@@ -66,17 +66,17 @@ OPCODES: dict[Mnemonic, list[uInstr]] = {
     Mnemonic.JMP: [
         uInstr(dst="pc", src="instruction"),
     ],
-    Mnemonic.JZ: [
-        uInstr(
-            conditional={
-                ("zero_flag", 1): uInstr(dst="pc", src="instruction"),
-            }
-        ),
-    ],
     Mnemonic.JC: [
         uInstr(
             conditional={
                 ("carry_flag", 1): uInstr(dst="pc", src="instruction"),
+            },
+        ),
+    ],
+    Mnemonic.JZ: [
+        uInstr(
+            conditional={
+                ("zero_flag", 1): uInstr(dst="pc", src="instruction"),
             }
         ),
     ],
