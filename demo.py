@@ -8,34 +8,32 @@ from beneater import BenEater
 
 m = Module()
 
-ADD2_PROG = (
-    [
-        0x1E,  # LDA E
-        0x2F,  # ADD F
-        0xE0,  # OUT
-        0xFF,  # HLT
-    ]
-    + [0] * 10
-    + [28, 14]
-)
-
-MULTIPLY_PROG = [
-    0x51,  # LDI 1
-    0x4C,  # STA C
-    0x1D,  # LDA D
-    0x2F,  # ADD F
-    0x4F,  # STA F
-    0x1E,  # LDA E
-    0x3C,  # SUB C
-    0x79,  # JZ 9
-    0x62,  # JMP 2
-    0x1F,  # LDA F
+ADD2_PROG = [
+    0x14,  # LDA 4
+    0x25,  # ADD 5
     0xE0,  # OUT
     0xFF,  # HLT
-    0x00,  # DATA 0
-    0x07,  # DATA 7
-    0x05,  # DATA 5
-    0x00,  # DATA 0
+    28,  # data
+    14,  # data
+]
+
+MULTIPLY_PROG = [
+    0x1E,  # LDA x
+    0x2C,  # SUB c1
+    0x76,  # JC 6
+    0x1D,  # LDA result
+    0xE0,  # OUT
+    0xF0,  # HLT
+    0x4E,  # STA x
+    0x1D,  # LDA result
+    0x2F,  # ADD y
+    0x4D,  # STA result
+    0x60,  # JMP 0
+    0,  # b
+    0xFF,  # c: c1
+    0,  # d: result
+    13,  # e: x
+    12,  # f: y
 ]
 
 JUMP_BY_7_PROG = [
@@ -47,7 +45,19 @@ JUMP_BY_7_PROG = [
     0x63,  # JMP 3
 ]
 
-be8 = m.submodules.be8 = BenEater(JUMP_BY_7_PROG)
+COUNT_UP_DOWN = [
+    0xE0,  # OUT
+    0x28,  # ADD 8
+    0x74,  # JC 4
+    0x60,  # JMP 0
+    0x38,  # SUB 8
+    0xE0,  # OUT
+    0x80,  # JZ 0
+    0x64,  # JMP 4
+    1,  # data
+]
+
+be8 = m.submodules.be8 = BenEater(MULTIPLY_PROG)
 
 
 def testbench() -> Iterator[Statement | None]:
@@ -116,8 +126,13 @@ def testbench() -> Iterator[Statement | None]:
     #     yield
 
     # Full CPU
-    for _ in range(150):
+    cycles = 0
+    MAX_CYCLES = 20000
+    while not (yield be8.halted):
         yield
+        cycles += 1
+        if cycles >= MAX_CYCLES:
+            break
 
 
 sim = Simulator(m)
