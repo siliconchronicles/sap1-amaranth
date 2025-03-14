@@ -1,7 +1,7 @@
 from typing import Iterator
 from amaranth import Module
 from amaranth.sim import Simulator
-from amaranth.hdl.ast import Statement
+from amaranth.hdl._ast import Statement
 
 from beneater import BenEater
 

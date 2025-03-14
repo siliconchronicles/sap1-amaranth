@@ -1,5 +1,6 @@
-from amaranth import Memory, Module, Signal
+from amaranth import Module, Signal
 from amaranth.lib import wiring
+from amaranth.lib.memory import Memory
 from amaranth.lib.wiring import In, Out
 
 
@@ -14,7 +15,7 @@ class RAM(wiring.Component):
         self.address_lines = address_lines
         self.width = width
 
-        self.memory = Memory(width=width, depth=1 << address_lines, init=program)
+        self.memory = Memory(shape=width, depth=1 << address_lines, init=program)
 
         super().__init__(
             dict(
@@ -28,8 +29,10 @@ class RAM(wiring.Component):
     def elaborate(self, platform) -> Module:
         m = Module()
 
-        _read = m.submodules.read_port = self.memory.read_port(domain="comb")
-        _write = m.submodules.write_port = self.memory.write_port()
+        m.submodules.memory = self.memory
+
+        _read = self.memory.read_port(domain="comb")
+        _write = self.memory.write_port()
         m.d.comb += [
             _read.addr.eq(self.address),
             self.data_out.eq(_read.data),

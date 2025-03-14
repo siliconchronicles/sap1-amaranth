@@ -1,6 +1,6 @@
 from typing import Iterator, Protocol
 from amaranth import Module, Signal
-from amaranth.hdl.ast import Statement
+from amaranth.hdl._ast import Statement
 from amaranth.lib import wiring
 from amaranth.lib.wiring import In, Out
 
