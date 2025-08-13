@@ -2,7 +2,7 @@ from amaranth import Module
 
 from amaranth.build import Resource, Pins, Attrs
 from amaranth.lib import wiring
-from amaranth_boards.tang_nano_9k import TangNano9kPlatform
+from tang_nano_20k import TangNano9kPlatform
 
 
 from beneater import BenEater
