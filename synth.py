@@ -2,18 +2,18 @@ from amaranth import Module
 
 from amaranth.build import Resource, Pins, Attrs
 from amaranth.lib import wiring
-from tang_nano_20k import TangNano9kPlatform
+from tang_nano_20k import TangNano20kPlatform
 
 
 from beneater import BenEater
 
 
-class EaterNano(TangNano9kPlatform):
-    default_clk = "xclk"
-    resources = TangNano9kPlatform.resources + [
-        Resource("hlt", 0, Pins("32", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
-        Resource("xclk", 0, Pins("31", dir="i"), Attrs(IO_TYPE="LVCMOS33")),
-        Resource("rout", 0, Pins("38 37 36 39 25 26 27 28", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
+class SAP1_Nano(TangNano20kPlatform):
+#    default_clk = "xclk"
+    resources = TangNano20kPlatform.resources + [
+        Resource("hlt", 0, Pins("74", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
+        Resource("xclk", 0, Pins("73", dir="i"), Attrs(IO_TYPE="LVCMOS33")),
+        Resource("rout", 0, Pins("76 80 42 41 56 54 51 48", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
     ]
 
 class Display(wiring.Elaboratable):
@@ -35,7 +35,7 @@ class TangGlue(wiring.Elaboratable):
         self.be8 = be8
         super().__init__(*args, **kwargs)
 
-    def elaborate(self, platform: EaterNano):
+    def elaborate(self, platform: SAP1_Nano):
         m = Module()
         # HLT line
         hlt = platform.request("hlt")
@@ -79,4 +79,4 @@ if __name__ == "__main__":
     m.submodules.display = Display(out_port=m.submodules.be8.program_counter.data_out)
     m.submodules.glue = TangGlue(m.submodules.be8)
 
-    EaterNano().build(m, do_program=False)
+    SAP1_Nano().build(m, do_program=False)
