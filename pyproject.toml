@@ -1,0 +1,17 @@
+[project]
+name = "beneater-hdl"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "amaranth",
+    "amaranth-boards",
+    "yowasp-nextpnr-himbaechel-gowin>=0.7.0.177.post611.dev0",
+    "yowasp-yosys",
+]
+
+[tool.uv.sources]
+amaranth-boards = { git = "https://github.com/dmoisset/amaranth-boards" }
+amaranth = { path = "../../src/3rdparty/amaranth" }
+# amaranth = { git = "https://github.com/dmoisset/amaranth" }

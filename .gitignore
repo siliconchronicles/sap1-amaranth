@@ -1,4 +1,7 @@
 __pycache__/
 datasheets/
 *.vcd
+*.gtkw
 schematics/
+.vscode/
+build/
