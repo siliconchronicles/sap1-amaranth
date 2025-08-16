@@ -9,7 +9,7 @@ from beneater import BenEater
 
 
 class SAP1_Nano(TangNano20kPlatform):
-#    default_clk = "xclk"
+
     resources = TangNano20kPlatform.resources + [
         Resource("hlt", 0, Pins("74", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
         Resource("xclk", 0, Pins("73", dir="i"), Attrs(IO_TYPE="LVCMOS33")),
