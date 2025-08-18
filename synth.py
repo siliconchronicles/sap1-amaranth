@@ -2,6 +2,7 @@ from amaranth import Module, ClockDomain, DomainRenamer
 
 from amaranth.build import Resource, Pins, Attrs
 from amaranth.lib import wiring
+from amaranth.lib.cdc import FFSynchronizer
 from tang_nano_20k import TangNano20kPlatform
 
 
@@ -47,10 +48,12 @@ class TangGlue(wiring.Elaboratable):
         # Connect clock control
         button_0 = platform.request("button", 0)
         button_1 = platform.request("button", 1)
+
+        m.submodules.button_0_sync = FFSynchronizer(button_0.i, self.clock_control.slow, o_domain="xclk")
+        m.submodules.button_1_sync = FFSynchronizer(button_1.i, self.clock_control.fast, o_domain="xclk")
+
         m.d.comb += [
             self.clock_control.hlt.eq(self.sap1.halted),
-            self.clock_control.slow.eq(button_0.i),
-            self.clock_control.fast.eq(button_1.i),
         ]
 
         return m
