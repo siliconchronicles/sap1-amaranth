@@ -21,6 +21,8 @@ class BenEater(wiring.Component):
 
     display: wiring.Out(DATA_BUS_WIDTH)
 
+    halted: wiring.Out(1)
+
     def __init__(self, program: object = None) -> None:
         self.register_a = Register(DATA_BUS_WIDTH)
         self.register_b = Register(DATA_BUS_WIDTH)
@@ -58,7 +60,6 @@ class BenEater(wiring.Component):
 
         # Control
         self.u_sequencer = Signal(3)
-        self.halted = Signal()
 
     def elaborate(self, platform) -> Module:
         m = Module()

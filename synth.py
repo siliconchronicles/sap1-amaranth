@@ -1,4 +1,4 @@
-from amaranth import Module
+from amaranth import Module, ClockDomain, DomainRenamer
 
 from amaranth.build import Resource, Pins, Attrs
 from amaranth.lib import wiring
@@ -6,13 +6,10 @@ from tang_nano_20k import TangNano20kPlatform
 
 
 from beneater import BenEater
-
+from clock_control import ClockControl
 
 class SAP1_Nano(TangNano20kPlatform):
-
     resources = TangNano20kPlatform.resources + [
-        Resource("hlt", 0, Pins("74", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
-        Resource("xclk", 0, Pins("73", dir="i"), Attrs(IO_TYPE="LVCMOS33")),
         Resource("rout", 0, Pins("76 80 42 41 56 54 51 48", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
     ]
 
@@ -31,39 +28,46 @@ class Display(wiring.Elaboratable):
         return m
 
 class TangGlue(wiring.Elaboratable):
-    def __init__(self, be8, *args, **kwargs):
-        self.be8 = be8
+    def __init__(self, sap1, clock_control, *args, **kwargs):
+        self.sap1 = sap1
+        self.clock_control = clock_control
         super().__init__(*args, **kwargs)
 
     def elaborate(self, platform: SAP1_Nano):
         m = Module()
+
         # HLT line
-        hlt = platform.request("hlt")
         led5 = platform.request("led", 5)
-        m.d.comb += hlt.o.eq(self.be8.halted)
-        m.d.comb += led5.o.eq(self.be8.halted)
-        # External clock
-        # xclk = platform.request("xclk")
-        # led4 = platform.request("led", 4)
-        # m.d.comb += led4.o.eq(xclk.i)
+        m.d.comb += led5.o.eq(self.sap1.halted)
+
+        # Output register
         rout = platform.request("rout")
-        m.d.comb += rout.o.eq(self.be8.output_register.data_out)
+        m.d.comb += rout.o.eq(self.sap1.output_register.data_out)
+
+        # Connect clock control
+        button_0 = platform.request("button", 0)
+        button_1 = platform.request("button", 1)
+        m.d.comb += [
+            self.clock_control.hlt.eq(self.sap1.halted),
+            self.clock_control.slow.eq(button_0.i),
+            self.clock_control.fast.eq(button_1.i),
+        ]
 
         return m
 
 
 MULTIPLY_PROG = [
-    0x1E,  # LDA x
-    0x2C,  # SUB c1
-    0x75,  # JC 5
-    0x1D,  # LDA result
-    0xF0,  # HLT
-    0x4E,  # STA x
-    0x1D,  # LDA result
-    0x2F,  # ADD y
-    0xE0,  # OUT
-    0x4D,  # STA result
-    0x60,  # JMP 0
+    0x1E,  # 0: LDA x
+    0x2C,  # 1: ADD c1
+    0x75,  # 2: JC 5
+    0x1D,  # 3: LDA result
+    0xF0,  # 4: HLT
+    0x4E,  # 5: STA x
+    0x1D,  # 6: LDA result
+    0x2F,  # 7: ADD y
+    0xE0,  # 8: OUT
+    0x4D,  # 9: STA result
+    0x60,  # a: JMP 0
     0,  # b
     0xFF,  # c: c1
     0,  # d: result
@@ -74,9 +78,26 @@ MULTIPLY_PROG = [
 
 if __name__ == "__main__":
 
-    m = Module()
-    m.submodules.be8 = BenEater(MULTIPLY_PROG)
-    m.submodules.display = Display(out_port=m.submodules.be8.program_counter.data_out)
-    m.submodules.glue = TangGlue(m.submodules.be8)
+    platform = SAP1_Nano()
 
-    SAP1_Nano().build(m, do_program=False)
+    m = Module()
+
+    # Setup clock domains
+    m.domains.sync = sync = ClockDomain()
+    m.domains.xclk = xclk = ClockDomain()
+
+    # Create submodules
+    m.submodules.clock_control = cc = DomainRenamer("xclk")(ClockControl())
+    m.submodules.sap1 = sap1 = BenEater(MULTIPLY_PROG)
+    m.submodules.display = Display(out_port=sap1.program_counter.data_out)
+    m.submodules.glue = TangGlue(sap1, cc)
+
+    # Connect clock control to SAP1
+    m.d.comb += [
+        sync.clk.eq(cc.cpuclk),
+        sync.rst.eq(cc.cpureset),
+        xclk.clk.eq(platform.request("clk27").i),
+        xclk.rst.eq(0),  # No reset for xclk
+    ]
+
+    platform.build(m, do_program=False)

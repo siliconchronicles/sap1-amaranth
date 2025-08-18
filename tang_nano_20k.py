@@ -16,7 +16,7 @@ class TangNano20kPlatform(GowinPlatform):
         Resource(
             "clk27", 0, Pins("4", dir="i"), Clock(27e6), Attrs(IO_TYPE="LVCMOS33")
         ),
-        *ButtonResources(pins="88 87", invert=True, attrs=Attrs(IO_TYPE="LVCMOS33")),
+        *ButtonResources(pins="88 87", attrs=Attrs(IO_TYPE="LVCMOS33")),
         *LEDResources(
             pins="15 16 17 18 19 20", invert=True, attrs=Attrs(IO_TYPE="LVCMOS33")
         ),
