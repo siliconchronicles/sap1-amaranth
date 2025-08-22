@@ -28,9 +28,10 @@ class DataControlBus(wiring.Component):
         self.width = width
         self.in_ports = list(in_ports.values())
         self.out_ports = list(out_ports.values())
-        self._in_idx = {name: idx for idx, name in enumerate(in_ports)}
+        self._in_idx: dict[str | None, int] = {name: idx for idx, name in enumerate(in_ports)}
+        self._in_idx[None] = len(in_ports)
         self._out_idx = {name: idx for idx, name in enumerate(out_ports)}
-        n_inputs = len(in_ports)
+        n_inputs = len(in_ports) + 1  # One extra input for "nothing"
         n_outputs = len(out_ports)
 
         self.bus_value = Signal(self.width)
@@ -62,6 +63,8 @@ class DataControlBus(wiring.Component):
             for idx, in_port in enumerate(self.in_ports):
                 with m.Case(idx):
                     m.d.comb += self.bus_value.eq(in_port.data_out)
+            with m.Default():
+                m.d.comb += self.bus_value.eq(0)
 
         for idx, out_port in enumerate(self.out_ports):
             with m.If(self.active_outputs[idx]):
@@ -74,7 +77,7 @@ class DataControlBus(wiring.Component):
 
         return m
 
-    def select_input(self, input: str) -> Statement:
+    def select_input(self, input: str | None) -> Statement:
         return self.active_input.eq(self._in_idx[input])
 
     def select_outputs(self, outputs: str = "") -> Iterator[Statement]:

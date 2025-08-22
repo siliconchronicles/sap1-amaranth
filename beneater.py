@@ -96,6 +96,7 @@ class BenEater(wiring.Component):
         # Do nothing by default, unless instruction logic overrides
         m.d.comb += [
             *self.data_bus.select_outputs(""),
+            self.data_bus.select_input(None),
             self.alu.update_flags.eq(0),
             self.program_counter.count_enable.eq(0),
         ]

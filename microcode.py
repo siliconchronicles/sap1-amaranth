@@ -14,7 +14,7 @@ Condition: TypeAlias = tuple[Flag, FlagValue]
 class uInstr:
     # What is moved over the data bus
     dst: str = ""
-    src: str = "a"
+    src: str | None = None
     # ALU settings
     subtract: bool = False
     update_flags: bool = False
