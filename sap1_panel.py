@@ -3,7 +3,7 @@ from amaranth.lib import wiring
 from amaranth import Module, Signal, C
 
 from beneater import BenEater
-from led_panel import LEDPanel, RegisterWidget, SequenceWidget, make_register
+from led_panel import LEDPanel, RegisterWidget, SequenceWidget, make_register, make_counter
 
 
 class SAP1Panel(wiring.Component):
@@ -56,7 +56,7 @@ class SAP1Panel(wiring.Component):
         tstate_widget = make_register(
             m, (0, 0, 2), (16 >> sap1.u_sequencer), write=sap1.halted
         )
-        pc_widget = make_register(
+        pc_widget = make_counter(
             m, (3, 2, 2), sap1.program_counter, read=sap1.data_bus.is_selected("pc")
         )
         ir_data_widget = make_register(
@@ -71,6 +71,13 @@ class SAP1Panel(wiring.Component):
             sap1.instruction_register.full_value[4:],
             write=sap1.instruction_register.write_enable,
         )
+        pc_indicator = make_register(
+            m,
+            (0, 0, 1),
+            sap1.program_counter.count_enable,
+            read=sap1.data_bus.is_selected("pc"),
+            write=sap1.data_bus.is_writing("pc"),
+        )
         indicators = [
             self.bus_indicator(m, "output"),
             make_register(m, (0, 0, 0), C(0), write=sap1.alu.update_flags),
@@ -80,14 +87,14 @@ class SAP1Panel(wiring.Component):
             self.bus_indicator(m, "instruction"),
             self.bus_indicator(m, "memory"),
             self.bus_indicator(m, "memory_address"),
-            self.bus_indicator(m, "pc"),  # TODO: show increase
+            pc_indicator,
         ]
         gap = make_register(m, (0, 0, 0), Signal(2))
 
         control_sequence = SequenceWidget(
             *indicators,
-            tstate_widget,
             gap,
+            tstate_widget,
             ir_data_widget,
             ir_opcode_widget,
             pc_widget,

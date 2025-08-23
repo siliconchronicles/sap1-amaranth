@@ -42,13 +42,19 @@ class RegisterWidget(wiring.Component):
     is in the LEDPanel class, not here.
     """
 
+    READ_COLOR = 0b001100
+    WRITE_COLOR = 0b110000
+
     def __init__(self, color: tuple[int, int, int], reg_shape: Shape) -> None:
         r, g, b = color
         assert all(0 <= c < 4 for c in (r, g, b)), "Color components must be in range [0, 4)"
         self.base_color: int = (r << 4) | (g << 2) | b
         self.reg_size: int = reg_shape.width
         assert self.reg_size > 0, "Register size must be positive"
-        super().__init__({
+        super().__init__(self.make_signature(reg_shape))
+
+    def make_signature(self, reg_shape: Shape) -> wiring.Signature:
+        return wiring.Signature({
             "panel": wiring.Out(WidgetSignature),
             "reg": wiring.In(reg_shape),
             "reg_read": wiring.In(1),
@@ -80,13 +86,14 @@ class RegisterWidget(wiring.Component):
 
         # Define output color
         with m.If(self.reg_read):
-            m.d.comb += self.panel.color.eq(0b001100)  # Read color: green
+            m.d.comb += self.panel.color.eq(self.READ_COLOR)  # Read color: green
         with m.Elif(self.reg_write):
-            m.d.comb += self.panel.color.eq(0b110000)  # Write color: red
+            m.d.comb += self.panel.color.eq(self.WRITE_COLOR)  # Write color: red
         with m.Else():
             m.d.comb += self.panel.color.eq(self.base_color)
 
         return m
+
 
 def make_register(
     m: wiring.Module, color: tuple[int, int, int],
@@ -104,7 +111,7 @@ def make_register(
         case wiring.Component(data_out=reg_data):
             sig_source = reg_data
         case _:
-            assert False, f"Invalid source: {source!r} (type: {type(source)})"
+            raise ValueError(f"Invalid source: {source!r} (type: {type(source)})")
 
     reg_widget = RegisterWidget(color, sig_source.shape())
 
@@ -114,6 +121,44 @@ def make_register(
     if write is not None:
         m.d.comb += reg_widget.reg_write.eq(write)
     return reg_widget
+
+
+class CounterWidget(RegisterWidget):
+
+    COUNT_COLOR = 0b000011
+
+    def make_signature(self, reg_shape: Shape) -> wiring.Signature:
+        return wiring.Signature(
+            {
+                "panel": wiring.Out(WidgetSignature),
+                "reg": wiring.In(reg_shape),
+                "reg_read": wiring.In(1),
+                "reg_write": wiring.In(1),
+                "reg_count": wiring.In(1),
+            }
+        )
+
+    def elaborate(self, platform) -> wiring.Module:
+        m = super().elaborate(platform)
+
+        with m.If(self.reg_count):
+            m.d.comb += self.panel.color.eq(self.COUNT_COLOR)  # Count color: blue
+
+        return m
+
+
+def make_counter(m: wiring.Module, color: tuple[int, int, int], source: wiring.Component, read: Value) -> CounterWidget:
+
+    reg_widget = CounterWidget(color, source.data_out.shape())
+
+    m.d.comb += [
+        reg_widget.reg.eq(source.data_out),
+        reg_widget.reg_count.eq(source.count_enable),
+        reg_widget.reg_read.eq(read),
+        reg_widget.reg_write.eq(source.write_enable),
+    ]
+    return reg_widget
+
 
 class SequenceWidget(wiring.Component):
     """Widget that sequences multiple other widgets."""
