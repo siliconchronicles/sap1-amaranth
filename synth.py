@@ -3,6 +3,7 @@ from amaranth import Module, ClockDomain, DomainRenamer
 from amaranth.build import Resource, Pins, Attrs
 from amaranth.lib import wiring
 from amaranth.lib.cdc import FFSynchronizer
+from sap1_panel import SAP1Panel
 from tang_nano_20k import TangNano20kPlatform
 
 
@@ -12,6 +13,7 @@ from clock_control import ClockControl
 class SAP1_Nano(TangNano20kPlatform):
     resources = TangNano20kPlatform.resources + [
         Resource("rout", 0, Pins("76 80 42 41 56 54 51 48", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
+        Resource("panel_alu", 0, Pins("73", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
     ]
 
 class Display(wiring.Elaboratable):
@@ -35,15 +37,16 @@ class TangGlue(wiring.Elaboratable):
         super().__init__(*args, **kwargs)
 
     def elaborate(self, platform: SAP1_Nano):
+        sap1 = self.sap1
         m = Module()
 
         # HLT line
         led5 = platform.request("led", 5)
-        m.d.comb += led5.o.eq(self.sap1.halted)
+        m.d.comb += led5.o.eq(sap1.halted)
 
         # Output register
         rout = platform.request("rout")
-        m.d.comb += rout.o.eq(self.sap1.output_register.data_out)
+        m.d.comb += rout.o.eq(sap1.output_register.data_out)
 
         # Connect clock control
         button_0 = platform.request("button", 0)
@@ -53,7 +56,7 @@ class TangGlue(wiring.Elaboratable):
         m.submodules.button_1_sync = FFSynchronizer(button_1.i, self.clock_control.fast, o_domain="xclk")
 
         m.d.comb += [
-            self.clock_control.hlt.eq(self.sap1.halted),
+            self.clock_control.hlt.eq(sap1.halted),
         ]
 
         return m
@@ -61,7 +64,7 @@ class TangGlue(wiring.Elaboratable):
 
 MULTIPLY_PROG = [
     0x1E,  # 0: LDA x
-    0x2C,  # 1: ADD c1
+    0x3C,  # 1: SUB c1
     0x75,  # 2: JC 5
     0x1D,  # 3: LDA result
     0xF0,  # 4: HLT
@@ -72,7 +75,7 @@ MULTIPLY_PROG = [
     0x4D,  # 9: STA result
     0x60,  # a: JMP 0
     0,  # b
-    0xFF,  # c: c1
+    0x1,  # c: c1
     0,  # d: result
     9,  # e: x
     9,  # f: y
@@ -80,7 +83,6 @@ MULTIPLY_PROG = [
 
 
 if __name__ == "__main__":
-
     platform = SAP1_Nano()
 
     m = Module()
@@ -94,6 +96,8 @@ if __name__ == "__main__":
     m.submodules.sap1 = sap1 = BenEater(MULTIPLY_PROG)
     m.submodules.display = Display(out_port=sap1.program_counter.data_out)
     m.submodules.glue = TangGlue(sap1, cc)
+    m.submodules.panel_glue = DomainRenamer("xclk")(SAP1Panel(sap1))
+    m.d.comb += platform.request("panel_alu").o.eq(m.submodules.panel_glue.alu_dout)
 
     # Connect clock control to SAP1
     m.d.comb += [
