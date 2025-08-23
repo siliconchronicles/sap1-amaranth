@@ -1,23 +1,23 @@
 """
 The system internal state is shown through a collection of WS2812B RGB LEDs.
 
-This module controls the panels. There are some output components that pull data from
+This module controls the display LED panels. There are some "widgets" that pull data from
 the SAP-1 system and serialize those providing a 6 bit color value (all data is binary,
 and colour is used to indicate control signals; e.g. red when a register is being written
-and green when read). These components have an interface similar to a shift register
+and green when read). These widgets have an interface similar to a shift register
 ("load" and "shift out" inputs, and a "data out" output); with the addition of a 
 "finished" signal that indicates when the data has been fully shifted out (because the
 amount of data is variable). 
 
-A LEDPanel ties together a collection of these components, and sequences them, and
+A LEDPanel ties together a collection of these widgets, and sequences them, and
 generates the WS2812B protocol to drive the LEDs.
 """
 
 from amaranth.lib import wiring
-from amaranth import Shape, Signal
+from amaranth import Shape, Signal, Cat
 
 
-OutputComponentSignature = wiring.Signature({
+WidgetSignature = wiring.Signature({
     # Control signals
     "load": wiring.In(1),
     "shift_out": wiring.In(1),
@@ -28,15 +28,18 @@ OutputComponentSignature = wiring.Signature({
     "color": wiring.Out(6)
 })
 
-class RegisterOutput(wiring.Component):
+class RegisterWidget(wiring.Component):
     """
-    Output component to display a register. Each bit is mapped to a LED. A 6 bit color
-    RrGgBb defines the general color of the register. Read and write signals override
+    Widget to display a register. Each bit is mapped to a LED. A 6 bit color
+    RrGgBb defines the general color of the widget. Read and write signals override
     the color to indicate the operation being performed.
 
     Color is mapped in the following way:
       - If read, RrGgBb is overriden to 001100 (and then transformed as above)
       - If write, RrGgBb is overriden to 110000 (and then transformed as above)
+
+    Note that the logic of making the color brighter/dimmer based on the bit status
+    is in the LEDPanel class, not here.
     """
 
     def __init__(self, color: tuple[int, int, int], reg_shape: Shape) -> None:
@@ -45,7 +48,7 @@ class RegisterOutput(wiring.Component):
         self.base_color: int = (r << 4) | (g << 2) | b
         self.reg_size: int = reg_shape.width
         super().__init__({
-            "panel": wiring.Out(OutputComponentSignature),
+            "panel": wiring.Out(WidgetSignature),
             "reg": wiring.In(reg_shape),
             "reg_read": wiring.In(1),
             "reg_write": wiring.In(1),
@@ -85,35 +88,62 @@ class RegisterOutput(wiring.Component):
         return m
 
 
-class ComponentSequencer(wiring.Component):
-    """Output component that sequences multiple output components."""
+class SequenceWidget(wiring.Component):
+    """Widget that sequences multiple other widgets."""
 
-    def __init__(self, output_components: list[wiring.Component]) -> None:
-        self.output_components = output_components
+    panel: wiring.Out(WidgetSignature)
+
+    def __init__(self, widgets: list[wiring.Component]) -> None:
+        self.widgets = widgets
         super().__init__()
 
     def elaborate(self, platform) -> wiring.Module:
         m = wiring.Module()
 
-        # Instantiate each output component and connect them
-        for i, output in enumerate(self.output_components):
-            m.submodules[f"output_{i}"] = output
+        for idx, comp in enumerate(self.widgets):
+            m.submodules[f"widget_{idx}"] = comp
 
-        # TODO
+        widget_count = len(self.widgets)
+        widget_selector = Signal(range(widget_count))
+
+        output_bits = Cat(*(comp.panel.data_out for comp in self.widgets))
+        color_bits = Cat(*(comp.panel.color for comp in self.widgets))
+        finished_bits = Cat(*(comp.panel.finished for comp in self.widgets))
+
+        # When requested to load, load all components
+        for idx, comp in enumerate(self.widgets):
+            m.d.comb += [
+                comp.panel.load.eq(self.panel.load),
+                comp.panel.shift_out.eq(self.panel.shift_out & (widget_selector == idx)),
+            ]
+
+        # Data out and color come from the selected component
+        m.d.comb += [
+            self.panel.data_out.eq(output_bits.word_select(widget_selector, 1)),
+            self.panel.color.eq(color_bits.word_select(widget_selector, 6)),
+            self.panel.finished.eq(finished_bits[-1])  # Finished when last is finished
+        ]
+
+        # Update widget_selector
+        with m.If(self.panel.load):
+            m.d.sync += widget_selector.eq(0)
+        with m.Elif(finished_bits.word_select(widget_selector, 1) & (widget_selector != widget_count - 1)):
+            # Current widget is finished, there's more to process
+            m.d.sync += widget_selector.eq(widget_selector + 1)
 
         return m
 
 
 class LEDPanel(wiring.Component):
     """
-    Component that drives a panel of WS2812B LEDs.
+    Component that drives a panel of WS2812B LEDs based on a Widget.
     """
 
     # Delays in cycles
     T_HIGH = 9
     T_DATA = 10
     T_LOW = 9
-    T_WAIT = 1400
+    T_WAIT = 8000
     CLKFREQ = 27e6  # Clock frequency in Hz for the Tang Nano
 
     # Check timing values are correct:
@@ -121,13 +151,10 @@ class LEDPanel(wiring.Component):
     assert 700e-9 <= (T_DATA + T_LOW) / CLKFREQ <= 1000e-9  # T0L
     assert 650e-9 <= (T_HIGH + T_DATA) / CLKFREQ <= 950e-9  # T1H
     assert 300e-9 <= T_LOW / CLKFREQ <= 600e-9  # T1L
-    assert 50e-6 <= T_WAIT / CLKFREQ  # RESET
+    assert 280e-6 <= T_WAIT / CLKFREQ  # RESET
 
-    source: wiring.In(OutputComponentSignature)
+    source: wiring.In(WidgetSignature)
     dout: wiring.Out(1)
-
-    def __init__(self) -> None:
-        super().__init__()
 
     def elaborate(self, platform) -> wiring.Module:
         m = wiring.Module()
@@ -211,14 +238,38 @@ if __name__ == "__main__":
 
     m = wiring.Module()
 
-    m.submodules.output = output = RegisterOutput((3, 3, 2), register.shape())
+    output1 = RegisterWidget((3, 3, 2), register.shape())
     m.d.comb += [
-        output.reg.eq(register),
-        output.reg_read.eq(register_read),
-        output.reg_write.eq(register_write),
+        output1.reg.eq(register),
+        output1.reg_read.eq(register_read),
+        output1.reg_write.eq(register_write),
     ]
 
+    register2 = Signal(4, init=3)  # Example register
+    register2_read = Signal()
+    register2_write = Signal()
+
+    output2 = RegisterWidget((2, 0, 2), register2.shape())
+    m.d.comb += [
+        output2.reg.eq(register2),
+        output2.reg_read.eq(register2_read),
+        output2.reg_write.eq(register2_write),
+    ]
+
+    register3 = Signal(1, init=1)  # Example register
+    register3_read = Signal()
+    register3_write = Signal()
+
+    output3 = RegisterWidget((1, 1, 1), register3.shape())
+    m.d.comb += [
+        output3.reg.eq(register3),
+        output3.reg_read.eq(register3_read),
+        output3.reg_write.eq(register3_write),
+    ]
+
+    m.submodules.seq = seq = SequenceWidget([output1, output2, output3])
+
     m.submodules.panel = panel = LEDPanel()
-    wiring.connect(m, output.panel, panel.source)
+    wiring.connect(m, seq.panel, panel.source)
 
     main(m, ports=[panel.dout])
