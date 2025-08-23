@@ -15,3 +15,7 @@ dependencies = [
 amaranth-boards = { git = "https://github.com/dmoisset/amaranth-boards" }
 amaranth = { path = "../../src/3rdparty/amaranth" }
 # amaranth = { git = "https://github.com/dmoisset/amaranth" }
+
+[tool.pyright]
+reportInvalidTypeForm = "none"
+typeCheckingMode = "off"
