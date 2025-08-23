@@ -155,5 +155,5 @@ sim = Simulator(m)
 sim.add_clock(1e-6)
 sim.add_sync_process(testbench)
 
-with sim.write_vcd("beneater.vcd"):
+with sim.write_vcd("sap1.vcd"):
     sim.run()
