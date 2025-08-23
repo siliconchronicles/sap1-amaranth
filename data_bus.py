@@ -28,6 +28,7 @@ class DataControlBus(wiring.Component):
         self.width = width
         self.in_ports = list(in_ports.values())
         self.out_ports = list(out_ports.values())
+        self.port_names = in_ports.keys() | out_ports.keys()
         self._in_idx: dict[str | None, int] = {
             name: idx for idx, name in enumerate(in_ports)
         }
@@ -85,6 +86,10 @@ class DataControlBus(wiring.Component):
     def is_selected(self, input: str) -> Value:
         assert input in self._in_idx, f"Unknown bus input: {input}"
         return self.active_input == self._in_idx[input]
+
+    def is_writing(self, output: str) -> Value:
+        assert output in self._out_idx, f"Unknown bus output: {output}"
+        return self.active_outputs[self._out_idx[output]]
 
     def select_outputs(self, outputs: str = "") -> Iterator[Statement]:
         yield self.active_outputs.eq(0)
