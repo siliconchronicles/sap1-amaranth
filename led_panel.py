@@ -14,7 +14,7 @@ generates the WS2812B protocol to drive the LEDs.
 """
 
 from amaranth.lib import wiring
-from amaranth import Shape, Signal, Cat
+from amaranth import Shape, Signal, Cat, Value
 
 
 WidgetSignature = wiring.Signature({
@@ -87,6 +87,30 @@ class RegisterWidget(wiring.Component):
 
         return m
 
+def make_register(
+    m: wiring.Module, color: tuple[int, int, int],
+    source: wiring.Component | Value,
+    read: Signal | None = None,
+    write: Signal | None = None
+):
+    sig_source: Value
+    match source:
+        case Value():
+            sig_source = source
+        case wiring.Component(data_out=reg_data, write_enable=reg_we):
+            sig_source = reg_data
+            write = write if write is not None else reg_we
+        case wiring.Component(data_out=reg_data):
+            sig_source = reg_data
+
+    reg_widget = RegisterWidget(color, sig_source.shape())
+
+    m.d.comb += reg_widget.reg.eq(sig_source)
+    if read is not None:
+        m.d.comb += reg_widget.reg_read.eq(read)
+    if write is not None:
+        m.d.comb += reg_widget.reg_write.eq(write)
+    return reg_widget
 
 class SequenceWidget(wiring.Component):
     """Widget that sequences multiple other widgets."""
@@ -232,40 +256,11 @@ class LEDPanel(wiring.Component):
 if __name__ == "__main__":
     from amaranth.cli import main
 
-    register = Signal(3, init=5)  # Example register
-    register_read = Signal()
-    register_write = Signal()
-
     m = wiring.Module()
 
-    output1 = RegisterWidget((3, 3, 2), register.shape())
-    m.d.comb += [
-        output1.reg.eq(register),
-        output1.reg_read.eq(register_read),
-        output1.reg_write.eq(register_write),
-    ]
-
-    register2 = Signal(4, init=3)  # Example register
-    register2_read = Signal()
-    register2_write = Signal()
-
-    output2 = RegisterWidget((2, 0, 2), register2.shape())
-    m.d.comb += [
-        output2.reg.eq(register2),
-        output2.reg_read.eq(register2_read),
-        output2.reg_write.eq(register2_write),
-    ]
-
-    register3 = Signal(1, init=1)  # Example register
-    register3_read = Signal()
-    register3_write = Signal()
-
-    output3 = RegisterWidget((1, 1, 1), register3.shape())
-    m.d.comb += [
-        output3.reg.eq(register3),
-        output3.reg_read.eq(register3_read),
-        output3.reg_write.eq(register3_write),
-    ]
+    output1 = make_register(m, (3, 3, 2), Signal(3, init=5))
+    output2 = make_register(m, (2, 0, 2), Signal(4, init=3), read=Signal(init=1))
+    output3 = make_register(m, (1, 1, 1), Signal(1, init=1), write=Signal(init=1))
 
     m.submodules.seq = seq = SequenceWidget([output1, output2, output3])
     m.submodules.panel = panel = LEDPanel()
