@@ -90,8 +90,8 @@ class RegisterWidget(wiring.Component):
 def make_register(
     m: wiring.Module, color: tuple[int, int, int],
     source: wiring.Component | Value,
-    read: Signal | None = None,
-    write: Signal | None = None
+    read: Value | None = None,
+    write: Value | None = None
 ):
     sig_source: Value
     match source:
