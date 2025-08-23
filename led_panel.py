@@ -19,12 +19,12 @@ from amaranth import Shape, Signal, Cat
 
 WidgetSignature = wiring.Signature({
     # Control signals
-    "load": wiring.In(1),
+    "load": wiring.In(1),  # This makes the first bit available in data_out
     "shift_out": wiring.In(1),
 
     # Output signals
     "data_out": wiring.Out(1),
-    "finished": wiring.Out(1),
+    "finished": wiring.Out(1),  # Set after the last bit has been shifted out
     "color": wiring.Out(6)
 })
 
@@ -59,7 +59,7 @@ class RegisterWidget(wiring.Component):
 
         # Internal state
         data = Signal(self.reg.shape())
-        count = Signal(range(self.reg_size + 1))
+        count = Signal(range(self.reg_size))
 
         m.d.comb += self.panel.data_out.eq(data[0])
         m.d.comb += self.panel.finished.eq(count == 0)
@@ -68,10 +68,10 @@ class RegisterWidget(wiring.Component):
         with m.If(self.panel.load):
             m.d.sync += [
                 data.eq(self.reg),
-                count.eq(self.reg_size),
+                count.eq(self.reg_size-1),
             ]
         # Shift out the data when shift_out is high
-        with m.If(self.panel.shift_out & (count > 0)):
+        with m.If(self.panel.shift_out & (count != 0)):
             m.d.sync += [
                 data.eq(data >> 1),
                 count.eq(count - 1),
@@ -121,13 +121,13 @@ class SequenceWidget(wiring.Component):
         m.d.comb += [
             self.panel.data_out.eq(output_bits.word_select(widget_selector, 1)),
             self.panel.color.eq(color_bits.word_select(widget_selector, 6)),
-            self.panel.finished.eq(finished_bits[-1])  # Finished when last is finished
+            self.panel.finished.eq(finished_bits[-1] & (widget_selector == widget_count - 1))  # Finished when last is finished
         ]
 
         # Update widget_selector
         with m.If(self.panel.load):
             m.d.sync += widget_selector.eq(0)
-        with m.Elif(finished_bits.word_select(widget_selector, 1) & (widget_selector != widget_count - 1)):
+        with m.Elif(self.panel.shift_out & finished_bits.word_select(widget_selector, 1) & (widget_selector != widget_count - 1)):
             # Current widget is finished, there's more to process
             m.d.sync += widget_selector.eq(widget_selector + 1)
 
@@ -173,25 +173,21 @@ class LEDPanel(wiring.Component):
                 m.d.comb += self.source.load.eq(1)
                 m.next = "Read Data"
             with m.State("Read Data"):
-                with m.If(self.source.finished):
-                    m.d.sync += timer.eq(self.T_WAIT)
-                    m.next = "Reset"
+                r, g, b = self.source.color[4:6], self.source.color[2:4], self.source.color[0:2]
+                with m.If(self.source.data_out):
+                    # High pixel. We turn RrGgBb into 0000RrRr, 0000GgGg, 0000BbBb
+                    # Also, we put color components in GBR order as expected by WS2812
+                    m.d.sync += current_pixel.eq(g << 18 | g << 16 | r << 10 | r << 8 | b << 2 | b)
                 with m.Else():
-                    r, g, b = self.source.color[4:6], self.source.color[2:4], self.source.color[0:2]
-                    with m.If(self.source.data_out):
-                        # High pixel. We turn RrGgBb into 0000RrRr, 0000GgGg, 0000BbBb
-                        # Also, we put color components in GBR order as expected by WS2812
-                        m.d.sync += current_pixel.eq(g << 18 | g << 16 | r << 10 | r << 8 | b << 2 | b)
-                    with m.Else():
-                        # Low pixel. We turn RrGgBb into 0000000R, 0000000G, 0000000B
-                        m.d.sync += current_pixel.eq(
-                            (g >> 1) << 16 | (r >> 1) << 8 | (b >> 1)
-                        )
-                    m.d.sync += [
-                        timer.eq(self.T_HIGH),
-                        pixel_bits_shifted.eq(0),
-                    ]
-                    m.next = "Output High"
+                    # Low pixel. We turn RrGgBb into 0000000R, 0000000G, 0000000B
+                    m.d.sync += current_pixel.eq(
+                        (g >> 1) << 16 | (r >> 1) << 8 | (b >> 1)
+                    )
+                m.d.sync += [
+                    timer.eq(self.T_HIGH),
+                    pixel_bits_shifted.eq(0),
+                ]
+                m.next = "Output High"
             with m.State("Output High"):
                 m.d.comb += self.dout.eq(1)
                 with m.If(timer == 0):
@@ -215,8 +211,12 @@ class LEDPanel(wiring.Component):
                 with m.If(timer == 0):
                     m.d.sync += timer.eq(self.T_HIGH)
                     with m.If(pixel_bits_shifted == 24):
-                        m.d.comb += self.source.shift_out.eq(1)
-                        m.next = "Read Data"
+                        with m.If(self.source.finished):
+                            m.d.sync += timer.eq(self.T_WAIT)
+                            m.next = "Reset"
+                        with m.Else():
+                            m.d.comb += self.source.shift_out.eq(1)
+                            m.next = "Read Data"
                     with m.Else():
                         m.next = "Output High"
                 with m.Else():
@@ -268,7 +268,6 @@ if __name__ == "__main__":
     ]
 
     m.submodules.seq = seq = SequenceWidget([output1, output2, output3])
-
     m.submodules.panel = panel = LEDPanel()
     wiring.connect(m, seq.panel, panel.source)
 
