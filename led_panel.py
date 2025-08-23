@@ -47,6 +47,7 @@ class RegisterWidget(wiring.Component):
         assert all(0 <= c < 4 for c in (r, g, b)), "Color components must be in range [0, 4)"
         self.base_color: int = (r << 4) | (g << 2) | b
         self.reg_size: int = reg_shape.width
+        assert self.reg_size > 0, "Register size must be positive"
         super().__init__({
             "panel": wiring.Out(WidgetSignature),
             "reg": wiring.In(reg_shape),
@@ -102,6 +103,8 @@ def make_register(
             write = write if write is not None else reg_we
         case wiring.Component(data_out=reg_data):
             sig_source = reg_data
+        case _:
+            assert False, f"Invalid source: {source!r} (type: {type(source)})"
 
     reg_widget = RegisterWidget(color, sig_source.shape())
 
@@ -117,7 +120,7 @@ class SequenceWidget(wiring.Component):
 
     panel: wiring.Out(WidgetSignature)
 
-    def __init__(self, widgets: list[wiring.Component]) -> None:
+    def __init__(self, *widgets: wiring.Component) -> None:
         self.widgets = widgets
         super().__init__()
 
@@ -262,7 +265,7 @@ if __name__ == "__main__":
     output2 = make_register(m, (2, 0, 2), Signal(4, init=3), read=Signal(init=1))
     output3 = make_register(m, (1, 1, 1), Signal(1, init=1), write=Signal(init=1))
 
-    m.submodules.seq = seq = SequenceWidget([output1, output2, output3])
+    m.submodules.seq = seq = SequenceWidget(output1, output2, output3)
     m.submodules.panel = panel = LEDPanel()
     wiring.connect(m, seq.panel, panel.source)
 
