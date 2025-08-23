@@ -33,7 +33,7 @@ class ALU(wiring.Component):
     def elaborate(self, platform) -> Module:
         m = Module()
 
-        operand_2 = (self.port_b ^ self.subtract.as_signed()).as_unsigned()
+        operand_2 = (self.port_b ^ self.subtract.as_signed())[:self.width]
 
         result = self.port_a + operand_2 + self.subtract
         m.d.comb += self._carry.eq(result[self.width])
