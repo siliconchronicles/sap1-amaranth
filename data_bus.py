@@ -1,5 +1,5 @@
 from typing import Iterator, Protocol
-from amaranth import Module, Signal
+from amaranth import Module, Signal, Value
 from amaranth.hdl._ast import Statement
 from amaranth.lib import wiring
 from amaranth.lib.wiring import In, Out
@@ -28,7 +28,9 @@ class DataControlBus(wiring.Component):
         self.width = width
         self.in_ports = list(in_ports.values())
         self.out_ports = list(out_ports.values())
-        self._in_idx: dict[str | None, int] = {name: idx for idx, name in enumerate(in_ports)}
+        self._in_idx: dict[str | None, int] = {
+            name: idx for idx, name in enumerate(in_ports)
+        }
         self._in_idx[None] = len(in_ports)
         self._out_idx = {name: idx for idx, name in enumerate(out_ports)}
         n_inputs = len(in_ports) + 1  # One extra input for "nothing"
@@ -79,6 +81,10 @@ class DataControlBus(wiring.Component):
 
     def select_input(self, input: str | None) -> Statement:
         return self.active_input.eq(self._in_idx[input])
+
+    def is_selected(self, input: str) -> Value:
+        assert input in self._in_idx, f"Unknown bus input: {input}"
+        return self.active_input == self._in_idx[input]
 
     def select_outputs(self, outputs: str = "") -> Iterator[Statement]:
         yield self.active_outputs.eq(0)
