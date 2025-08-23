@@ -12,8 +12,15 @@ from clock_control import ClockControl
 
 class SAP1_Nano(TangNano20kPlatform):
     resources = TangNano20kPlatform.resources + [
-        Resource("rout", 0, Pins("76 80 42 41 56 54 51 48", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
+        Resource(
+            "rout",
+            0,
+            Pins("76 80 42 41 56 54 51 48", dir="o"),
+            Attrs(IO_TYPE="LVCMOS33"),
+        ),
         Resource("panel_alu", 0, Pins("73", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
+        Resource("panel_ctrl", 0, Pins("74", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
+        Resource("panel_mem", 0, Pins("75", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
     ]
 
 class Display(wiring.Elaboratable):
@@ -98,6 +105,8 @@ if __name__ == "__main__":
     m.submodules.glue = TangGlue(sap1, cc)
     m.submodules.panel_glue = DomainRenamer("xclk")(SAP1Panel(sap1))
     m.d.comb += platform.request("panel_alu").o.eq(m.submodules.panel_glue.alu_dout)
+    m.d.comb += platform.request("panel_ctrl").o.eq(m.submodules.panel_glue.ctrl_dout)
+    m.d.comb += platform.request("panel_mem").o.eq(m.submodules.panel_glue.mem_dout)
 
     # Connect clock control to SAP1
     m.d.comb += [
