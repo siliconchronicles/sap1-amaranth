@@ -16,6 +16,7 @@ class RAM(wiring.Component):
         self.width = width
 
         self.memory = Memory(shape=width, depth=1 << address_lines, init=program)
+        self.panel_port = self.memory.read_port(domain="comb")
 
         super().__init__(
             dict(

@@ -115,5 +115,5 @@ if __name__ == "__main__":
         xclk.clk.eq(platform.request("clk27").i),
         xclk.rst.eq(0),  # No reset for xclk
     ]
-
+    print("Building...")
     platform.build(m, do_program=False)

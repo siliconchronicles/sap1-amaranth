@@ -3,7 +3,14 @@ from amaranth.lib import wiring
 from amaranth import Module, Signal, C
 
 from beneater import BenEater
-from led_panel import LEDPanel, RegisterWidget, SequenceWidget, make_register, make_counter
+from led_panel import (
+    LEDPanel,
+    RAMPanel,
+    RegisterWidget,
+    SequenceWidget,
+    make_register,
+    make_counter,
+)
 
 
 class SAP1Panel(wiring.Component):
@@ -103,6 +110,17 @@ class SAP1Panel(wiring.Component):
         m.submodules.panel_control = LEDPanel()
         m.d.comb += self.ctrl_dout.eq(m.submodules.panel_control.dout)
         wiring.connect(m, control_sequence.panel, m.submodules.panel_control.source)
+
+        # Memory Display
+        m.submodules.ram_widget = ram_widget = RAMPanel(sap1.memory.panel_port)
+        m.d.comb += [
+            ram_widget.address_register.eq(sap1.memory_address_register.data_out),
+            ram_widget.mem_read.eq(sap1.data_bus.is_selected("memory")),
+            ram_widget.mem_write.eq(sap1.memory.write_enable),
+        ]
+        m.submodules.panel_ram = LEDPanel()
+        m.d.comb += self.mem_dout.eq(m.submodules.panel_ram.dout)
+        wiring.connect(m, ram_widget.panel, m.submodules.panel_ram.source)
 
         return m
 
