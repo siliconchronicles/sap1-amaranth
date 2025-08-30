@@ -146,6 +146,6 @@ class BenEater(wiring.Component):
         with m.Switch(Cat(self.u_sequencer, encoded_opcode)):
             for opcode, uinstructions in microcode.OPCODES.items():
                 for sequence, uinstr in enumerate(uinstructions, 2):
-                    seq_value = C(sequence, self.u_sequencer.shape())
+                    seq_value = C(sequence, len(self.u_sequencer))
                     with m.Case(Cat(seq_value, C(opcode.value, 4))):
                         generate(uinstr)

@@ -15,9 +15,7 @@ generates the WS2812B protocol to drive the LEDs.
 
 from amaranth.lib import wiring
 from amaranth.lib.memory import ReadPort
-from amaranth import Shape, Signal, Cat, Value
-
-from memory import RAM
+from amaranth import Module, Shape, Signal, Cat, Value
 
 
 WidgetSignature = wiring.Signature(
@@ -50,15 +48,15 @@ class RegisterWidget(wiring.Component):
     READ_COLOR = 0b001100
     WRITE_COLOR = 0b110000
 
-    def __init__(self, color: tuple[int, int, int], reg_shape: Shape) -> None:
+    def __init__(self, color: tuple[int, int, int], reg_size: Shape) -> None:
         r, g, b = color
         assert all(
             0 <= c < 4 for c in (r, g, b)
         ), "Color components must be in range [0, 4)"
         self.base_color: int = (r << 4) | (g << 2) | b
-        self.reg_size: int = reg_shape.width
+        self.reg_size = reg_size
         assert self.reg_size > 0, "Register size must be positive"
-        super().__init__(self.make_signature(reg_shape))
+        super().__init__(self.make_signature(reg_size))
 
     def make_signature(self, reg_shape: Shape) -> wiring.Signature:
         return wiring.Signature(
@@ -70,11 +68,11 @@ class RegisterWidget(wiring.Component):
             }
         )
 
-    def elaborate(self, platform) -> wiring.Module:
-        m = wiring.Module()
+    def elaborate(self, platform) -> Module:
+        m = Module()
 
         # Internal state
-        data = Signal(self.reg.shape())
+        data = Signal.like(self.reg)
         count = Signal(range(self.reg_size))
 
         m.d.comb += self.panel.data_out.eq(data[0])
@@ -105,7 +103,7 @@ class RegisterWidget(wiring.Component):
 
 
 def make_register(
-    m: wiring.Module,
+    m: Module,
     color: tuple[int, int, int],
     source: wiring.Component | Value,
     read: Value | None = None,
@@ -123,7 +121,7 @@ def make_register(
         case _:
             raise ValueError(f"Invalid source: {source!r} (type: {type(source)})")
 
-    reg_widget = RegisterWidget(color, sig_source.shape())
+    reg_widget = RegisterWidget(color, len(sig_source))
 
     m.d.comb += reg_widget.reg.eq(sig_source)
     if read is not None:
@@ -148,7 +146,7 @@ class CounterWidget(RegisterWidget):
             }
         )
 
-    def elaborate(self, platform) -> wiring.Module:
+    def elaborate(self, platform) -> Module:
         m = super().elaborate(platform)
 
         with m.If(self.reg_count):
@@ -158,10 +156,10 @@ class CounterWidget(RegisterWidget):
 
 
 def make_counter(
-    m: wiring.Module, color: tuple[int, int, int], source: wiring.Component, read: Value
+    m: Module, color: tuple[int, int, int], source: wiring.Component, read: Value
 ) -> CounterWidget:
 
-    reg_widget = CounterWidget(color, source.data_out.shape())
+    reg_widget = CounterWidget(color, len(source.data_out))
 
     m.d.comb += [
         reg_widget.reg.eq(source.data_out),
@@ -196,14 +194,14 @@ class RAMPanel(wiring.Component):
 
     def __init__(self, memory_port: ReadPort) -> None:
         assert memory_port.memory.depth - 1 == self.TOP_ADDRESS
-        assert memory_port.data.shape().width == self.WIDTH
+        assert len(memory_port.data) == self.WIDTH
 
         self.ram_port = memory_port
 
         super().__init__()
 
-    def elaborate(self, platform) -> wiring.Module:
-        m = wiring.Module()
+    def elaborate(self, platform) -> Module:
+        m = Module()
 
         # This is implemented as a kind of FIFO queue, where the queue is filled 1 byte
         # at a time from RAM data, and the data is pushed out 1 bit at a time.
@@ -281,8 +279,8 @@ class SequenceWidget(wiring.Component):
         self.widgets = widgets
         super().__init__()
 
-    def elaborate(self, platform) -> wiring.Module:
-        m = wiring.Module()
+    def elaborate(self, platform) -> Module:
+        m = Module()
 
         for idx, comp in enumerate(self.widgets):
             m.submodules[f"widget_{idx}"] = comp
@@ -348,8 +346,8 @@ class LEDPanel(wiring.Component):
     source: wiring.In(WidgetSignature)
     dout: wiring.Out(1)
 
-    def elaborate(self, platform) -> wiring.Module:
-        m = wiring.Module()
+    def elaborate(self, platform) -> Module:
+        m = Module()
 
         current_pixel = Signal(24)  # Current pixel data, 24 bit RGB
         pixel_bits_shifted = Signal(
@@ -432,7 +430,7 @@ class LEDPanel(wiring.Component):
 if __name__ == "__main__":
     from amaranth.cli import main
 
-    m = wiring.Module()
+    m = Module()
 
     output1 = make_register(m, (3, 3, 2), Signal(3, init=5))
     output2 = make_register(m, (2, 0, 2), Signal(4, init=3), read=Signal(init=1))
