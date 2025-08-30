@@ -1,9 +1,10 @@
-from amaranth import Module, ClockDomain, DomainRenamer
+from amaranth import Module, ClockDomain, DomainRenamer, EnableInserter
 
 from amaranth.build import Resource, Pins, Attrs
 from amaranth.lib import wiring
 from amaranth.lib.cdc import FFSynchronizer
 from sap1_panel import SAP1Panel
+from tm1637 import SlowEnable, TM1637, DecimalDecoder
 from tang_nano_20k import TangNano20kPlatform
 
 
@@ -18,6 +19,8 @@ class SAP1_Nano(TangNano20kPlatform):
             Pins("76 80 42 41 56 54 51 48", dir="o"),
             Attrs(IO_TYPE="LVCMOS33"),
         ),
+        Resource("display_clk", 0, Pins("55", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
+        Resource("display_dio", 0, Pins("49", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
         Resource("panel_alu", 0, Pins("73", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
         Resource("panel_ctrl", 0, Pins("74", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
         Resource("panel_mem", 0, Pins("75", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
@@ -97,11 +100,24 @@ if __name__ == "__main__":
     # Setup clock domains
     m.domains.sync = sync = ClockDomain()
     m.domains.xclk = xclk = ClockDomain()
+    use_sys_clock = DomainRenamer("xclk")
 
     # Create submodules
     m.submodules.clock_control = cc = DomainRenamer("xclk")(ClockControl())
     m.submodules.sap1 = sap1 = BenEater(MULTIPLY_PROG)
-    m.submodules.display = Display(out_port=sap1.program_counter.data_out)
+    # Parallel display
+    # m.submodules.display = Display(out_port=sap1.program_counter.data_out)
+    m.submodules.speed = slow = use_sys_clock(SlowEnable(27))  # 1 microsecond per pulse
+    m.submodules.display = display = use_sys_clock(EnableInserter(slow.pulse)(TM1637()))
+    m.d.comb += platform.request("display_clk").o.eq(display.scl)
+    m.d.comb += platform.request("display_dio").o.eq(display.dio)
+
+    m.submodules.decimal = decimal = DecimalDecoder()
+    m.d.comb += [
+        decimal.value.eq(sap1.output_register.data_out),
+        display.display_data.eq(decimal.segments),
+    ]
+
     m.submodules.glue = TangGlue(sap1, cc)
     m.submodules.panel_glue = DomainRenamer("xclk")(SAP1Panel(sap1))
     m.d.comb += platform.request("panel_alu").o.eq(m.submodules.panel_glue.alu_dout)

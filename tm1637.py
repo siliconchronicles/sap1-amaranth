@@ -56,15 +56,15 @@ class DecimalDecoder(wiring.Component):
         m.d.comb += bcd.eq(result)
 
         previous_digit_visible = 0
-        for digit in reversed(range(4)):
-            m.submodules[f"digit_{digit}"] = digits = Seven_Segment_Decoder()
-            bcd_digit = bcd.word_select(digit, 4)
+        for digit_pos in reversed(range(4)):
+            m.submodules[f"digit_{digit_pos}"] = digits = Seven_Segment_Decoder()
+            bcd_digit = bcd.word_select(digit_pos, 4)
             m.d.comb += (
                 digits.bcd.eq(bcd_digit),
                 digits.dot.eq(0),
-                digits.visible.eq((bcd_digit != 0)| previous_digit_visible),
+                digits.visible.eq((digit_pos == 0) | (bcd_digit != 0) | previous_digit_visible),
             )
-            m.d.sync += self.segments.word_select(3 - digit, 8).eq(digits.segments)
+            m.d.sync += self.segments.word_select(3 - digit_pos, 8).eq(digits.segments)
             previous_digit_visible = digits.visible
         return m
 
