@@ -213,6 +213,13 @@ class TM1637(wiring.Component):
         return m
 
 
+def clocked_tm1637(divisor = 27) -> Module:
+    m = Module()
+    m.submodules.divisor = divisor = SlowEnable(divisor)
+    m.submodules.tm1637 = EnableInserter(divisor.pulse)(TM1637())
+    return m
+
+
 if __name__ == "__main__":
     from tang_nano_20k import TangNano20kPlatform
     from amaranth.build import Resource, Pins, Attrs
@@ -220,32 +227,35 @@ if __name__ == "__main__":
     class TM1637_Nano(TangNano20kPlatform):
         resources = TangNano20kPlatform.resources + [
             Resource(
-                "tmclk",
+                "display_clk",
                 0,
                 Pins("55", dir="o"),
                 Attrs(
                     IO_TYPE="LVCMOS33",
                 ),
             ),
-            Resource("tmdio", 0, Pins("49", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
+            Resource("display_dio", 0, Pins("49", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
         ]
 
     platform = TM1637_Nano()
 
     from amaranth.cli import main
 
-    DELAY = 27  # 1 microsecond; assuming the nano 27MHz clock.
-
     m = Module()
-    m.submodules.speed = slow = SlowEnable(DELAY)
-    m.submodules.display = display = EnableInserter(slow.pulse)(TM1637())
+    m.submodules.display = clocked_tm1637()
+    display = m.submodules.display.submodules.tm1637
 
-    m.d.comb += platform.request("tmclk").o.eq(m.submodules.display.scl)
-    m.d.comb += platform.request("tmdio").o.eq(m.submodules.display.dio)
+    m.d.comb += platform.request("display_clk").o.eq(display.scl)
+    m.d.comb += platform.request("display_dio").o.eq(display.dio)
 
-    m.submodules.data_speed = ds = SlowEnable(27_000_000 // 4)
+    # Use to control the display update rate
+    COUNT_DELAY = 27_000_000 // 2
+    delay = Signal(range(COUNT_DELAY), init=0)
+    m.d.sync += delay.eq(Mux(delay == 0, COUNT_DELAY - 1, delay - 1))
+
+    # Display increasing numbers
     counter = Signal(16)
-    with m.If(ds.pulse):
+    with m.If(delay == 0):
         m.d.sync += counter.eq(counter + 1)
 
     m.submodules.decimal = decimal = DecimalDecoder()

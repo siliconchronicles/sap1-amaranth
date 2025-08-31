@@ -446,6 +446,6 @@ if __name__ == "__main__":
     # ]
 
     m.submodules.panel = panel = LEDPanel()
-    wiring.connect(m, rampanel.panel, panel.source)
+    wiring.connect(m, seq.panel, panel.source)
 
     main(m, ports=[panel.dout])
