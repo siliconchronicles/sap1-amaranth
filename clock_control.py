@@ -1,10 +1,10 @@
 from amaranth import EnableInserter, Module, ResetInserter, Signal
 from amaranth.lib import wiring
 
-SPEED_BITS = 3
+SPEED_BITS = 5
 MAX_RUN_SPEED = (1 << SPEED_BITS) - 1  # 7
-WAIT_BITS = 8  # 256 cycles
-MAX_WAIT = (1 << WAIT_BITS) - 1  # 255
+WAIT_BITS = 25  # 2^25 cycles
+MAX_WAIT = (1 << WAIT_BITS) - 1
 
 
 class ClockControl(wiring.Component):

@@ -349,7 +349,7 @@ class LEDPanel(wiring.Component):
     def elaborate(self, platform) -> Module:
         m = Module()
 
-        current_pixel = Signal(24)  # Current pixel data, 24 bit RGB
+        current_pixel = Signal(24, reset_less=True)  # Current pixel data, 24 bit RGB
         pixel_bits_shifted = Signal(
             range(25)
         )  # Number of bits shifted out for current pixel

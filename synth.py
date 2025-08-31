@@ -84,7 +84,7 @@ class TangGlue(wiring.Elaboratable):
         )
 
         m.submodules.decimal = decimal = DecimalDecoder()
-        m.d.comb += [
+        m.d.sync += [ # Synchronous to avoid hold-time violations
             decimal.value.eq(sap1.output_register.data_out),
             display.display_data.eq(decimal.segments),
         ]

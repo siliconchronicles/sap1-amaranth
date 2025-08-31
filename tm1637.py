@@ -1,6 +1,6 @@
 import sys
 from typing import Literal
-from amaranth import Array, Const, Module, Signal, Mux, EnableInserter, Cat
+from amaranth import Array, Module, Signal, Mux, EnableInserter, Cat
 
 from amaranth.lib import wiring
 
@@ -64,7 +64,7 @@ class DecimalDecoder(wiring.Component):
                 digits.dot.eq(0),
                 digits.visible.eq((digit_pos == 0) | (bcd_digit != 0) | previous_digit_visible),
             )
-            m.d.sync += self.segments.word_select(3 - digit_pos, 8).eq(digits.segments)
+            m.d.comb += self.segments.word_select(3 - digit_pos, 8).eq(digits.segments)
             previous_digit_visible = digits.visible
         return m
 
@@ -161,7 +161,7 @@ class TM1637(wiring.Component):
         duration = len(sequence)
         current_step = Signal(range(duration + 1))  # sequential execution counter
         data_out = Signal.like(
-            self.display_data
+            self.display_data, reset_less=True
         )  # shift register for data transmission
         count = Signal(range(len(data_out) + 1))  # counter of data left
         with m.If(~initialized):
@@ -169,7 +169,7 @@ class TM1637(wiring.Component):
         with m.Else():
             # Active mode. Just loop sending the display data.
             prefix = START + send_byte(0xC0)
-            with m.FSM(name="update_display_fsm") as update_display_fsm:
+            with m.FSM(name="update_display_fsm"):
                 with m.State("SEND_PREFIX"):
                     send_fixed(prefix, end_step="SEND_DATA")
                     m.d.sync += [

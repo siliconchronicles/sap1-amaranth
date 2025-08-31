@@ -1,10 +1,10 @@
 import subprocess
 
 from amaranth.vendor import GowinPlatform
-from amaranth.build import Resource, Pins, Attrs, Clock, DiffPairs, Subsignal
+from amaranth.build import Resource, Pins, Attrs, Clock
 from amaranth_boards.resources import (
     ButtonResources, LEDResources, UARTResource,
-    SPIFlashResources, SDCardResources
+    SPIFlashResources
 )
 
 
