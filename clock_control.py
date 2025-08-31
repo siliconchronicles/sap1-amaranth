@@ -1,4 +1,4 @@
-from amaranth import Module, Signal
+from amaranth import EnableInserter, Module, ResetInserter, Signal
 from amaranth.lib import wiring
 
 SPEED_BITS = 3
@@ -91,6 +91,9 @@ class ClockControl(wiring.Component):
                 m.d.sync += run_speed.eq(run_speed + 1)
 
         return m
+
+    def apply_to(self, component):
+        return EnableInserter(self.cpuclk)(ResetInserter(self.cpureset)(component))
 
 
 if __name__ == "__main__":

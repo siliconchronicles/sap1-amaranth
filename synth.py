@@ -1,4 +1,4 @@
-from amaranth import EnableInserter, Module, ClockDomain, DomainRenamer, ResetInserter
+from amaranth import Module
 
 from amaranth.build import Resource, Pins, Attrs
 from amaranth.lib import wiring
@@ -93,16 +93,10 @@ class TangGlue(wiring.Elaboratable):
         button_0 = platform.request("button", 0)
         button_1 = platform.request("button", 1)
 
-        m.submodules.button_0_sync = FFSynchronizer(
-            button_0.i, self.clock_control.slow # , o_domain="xclk"
-        )
-        m.submodules.button_1_sync = FFSynchronizer(
-            button_1.i, self.clock_control.fast # , o_domain="xclk"
-        )
+        m.submodules.button_0_sync = FFSynchronizer(button_0.i, self.clock_control.slow)
+        m.submodules.button_1_sync = FFSynchronizer(button_1.i, self.clock_control.fast)
 
-        m.d.comb += [
-            self.clock_control.hlt.eq(sap1.halted),
-        ]
+        m.d.comb += self.clock_control.hlt.eq(sap1.halted)
 
         return m
 
@@ -134,9 +128,7 @@ if __name__ == "__main__":
 
     # Create submodules
     m.submodules.clock_control = cc = ClockControl()
-    m.submodules.sap1 = sap1 = EnableInserter(cc.cpuclk)(
-        ResetInserter(cc.cpureset)(BenEater(MULTIPLY_PROG))
-    )
+    m.submodules.sap1 = sap1 = cc.apply_to(BenEater(MULTIPLY_PROG))
     m.submodules.glue = TangGlue(sap1, cc)
     m.submodules.panel_glue = SAP1Panel(sap1)
     m.d.comb += platform.request("panel_alu").o.eq(m.submodules.panel_glue.alu_dout)
