@@ -114,7 +114,8 @@ class SAP1Panel(wiring.Component):
         # Memory Display
         m.submodules.ram_widget = ram_widget = RAMPanel(sap1.memory.panel_port)
         m.d.comb += [
-            ram_widget.address_register.eq(sap1.memory_address_register.data_out),
+            # FIXME: double negation to fix hold time violation
+            ram_widget.address_register.eq(~~sap1.memory_address_register.data_out),
             ram_widget.mem_read.eq(sap1.data_bus.is_selected("memory")),
             ram_widget.mem_write.eq(sap1.memory.write_enable),
         ]
