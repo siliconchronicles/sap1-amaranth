@@ -84,7 +84,8 @@ class BenEater(wiring.Component):
         m.d.comb += self.alu.port_b.eq(self.register_b.data_out)
 
         # Connect memory address register to RAM
-        m.d.comb += self.memory.address.eq(self.memory_address_register.data_out)
+        # FIXME: double negation to fix hold time violation
+        m.d.comb += self.memory.address.eq(~~self.memory_address_register.data_out)
 
         # Connect display
         m.d.comb += self.display.eq(self.output_register.data_out)

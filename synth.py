@@ -1,4 +1,4 @@
-from amaranth import Module, ClockDomain, DomainRenamer
+from amaranth import EnableInserter, Module, ClockDomain, DomainRenamer, ResetInserter
 
 from amaranth.build import Resource, Pins, Attrs
 from amaranth.lib import wiring
@@ -83,7 +83,7 @@ class TangGlue(wiring.Elaboratable):
             platform.request("display_dio").o.eq(display.dio),
         )
 
-        m.submodules.decimal = decimal = use_sys_clock(DecimalDecoder())
+        m.submodules.decimal = decimal = DecimalDecoder()
         m.d.comb += [
             decimal.value.eq(sap1.output_register.data_out),
             display.display_data.eq(decimal.segments),
@@ -94,10 +94,10 @@ class TangGlue(wiring.Elaboratable):
         button_1 = platform.request("button", 1)
 
         m.submodules.button_0_sync = FFSynchronizer(
-            button_0.i, self.clock_control.slow, o_domain="xclk"
+            button_0.i, self.clock_control.slow # , o_domain="xclk"
         )
         m.submodules.button_1_sync = FFSynchronizer(
-            button_1.i, self.clock_control.fast, o_domain="xclk"
+            button_1.i, self.clock_control.fast # , o_domain="xclk"
         )
 
         m.d.comb += [
@@ -132,26 +132,16 @@ if __name__ == "__main__":
 
     m = Module()
 
-    # Setup clock domains
-    m.domains.sync = sync = ClockDomain()
-    m.domains.xclk = xclk = ClockDomain()
-    use_sys_clock = DomainRenamer("xclk")
-
     # Create submodules
-    m.submodules.clock_control = cc = use_sys_clock(ClockControl())
-    m.submodules.sap1 = sap1 = BenEater(MULTIPLY_PROG)
-    m.submodules.glue = use_sys_clock(TangGlue(sap1, cc))
-    m.submodules.panel_glue = use_sys_clock(SAP1Panel(sap1))
+    m.submodules.clock_control = cc = ClockControl()
+    m.submodules.sap1 = sap1 = EnableInserter(cc.cpuclk)(
+        ResetInserter(cc.cpureset)(BenEater(MULTIPLY_PROG))
+    )
+    m.submodules.glue = TangGlue(sap1, cc)
+    m.submodules.panel_glue = SAP1Panel(sap1)
     m.d.comb += platform.request("panel_alu").o.eq(m.submodules.panel_glue.alu_dout)
     m.d.comb += platform.request("panel_ctrl").o.eq(m.submodules.panel_glue.ctrl_dout)
     m.d.comb += platform.request("panel_mem").o.eq(m.submodules.panel_glue.mem_dout)
 
-    # Connect clock control to SAP1
-    m.d.comb += [
-        sync.clk.eq(cc.cpuclk),
-        sync.rst.eq(cc.cpureset),
-        xclk.clk.eq(platform.request("clk27").i),
-        xclk.rst.eq(0),  # No reset for xclk
-    ]
     print("Building...")
     platform.build(m, do_program=False)
