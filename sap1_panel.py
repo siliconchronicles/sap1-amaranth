@@ -18,6 +18,7 @@ class SAP1Panel(wiring.Component):
     alu_dout: wiring.Out(1)
     mem_dout: wiring.Out(1)
     ctrl_dout: wiring.Out(1)
+    bus_dout: wiring.Out(1)
 
     def __init__(self, sap1: BenEater):
         self.sap1 = sap1
@@ -37,19 +38,19 @@ class SAP1Panel(wiring.Component):
         op_plus_widget = make_register(m, (0, 1, 0), ~sap1.alu.subtract)
         op_minus_widget = make_register(m, (1, 0, 0), sap1.alu.subtract)
         a_widget = make_register(
-            m, (2, 2, 2), sap1.register_a, read=sap1.data_bus.is_selected("a")
+            m, (2, 2, 2), sap1.register_a, read=sap1.data_bus.is_selected("a"), flip=True
         )
-        b_widget = make_register(m, (2, 2, 2), sap1.register_b)
+        b_widget = make_register(m, (2, 2, 2), sap1.register_b, flip=True)
         result_widget = make_register(
             m, (2, 2, 0), sap1.alu.data_out, read=sap1.data_bus.is_selected("alu")
         )
 
         alu_sequence = SequenceWidget(
-            result_widget,
-            b_widget,
             a_widget,
-            op_minus_widget,
             op_plus_widget,
+            op_minus_widget,
+            b_widget,
+            result_widget,
             carry_flag_widget,
             zero_flag_widget,
         )
@@ -69,14 +70,17 @@ class SAP1Panel(wiring.Component):
         ir_data_widget = make_register(
             m,
             (2, 2, 2),
-            sap1.instruction_register,
+            sap1.instruction_register.data_out,
             read=sap1.data_bus.is_selected("instruction"),
+            write=sap1.instruction_register.write_enable,
+            flip=True,
         )
         ir_opcode_widget = make_register(
             m,
             (2, 2, 3),
             sap1.instruction_register.full_value[4:],
             write=sap1.instruction_register.write_enable,
+            flip=True,
         )
         pc_indicator = make_register(
             m,
@@ -96,14 +100,12 @@ class SAP1Panel(wiring.Component):
             self.bus_indicator(m, "memory_address"),
             pc_indicator,
         ]
-        gap = make_register(m, (0, 0, 0), Signal(2))
 
         control_sequence = SequenceWidget(
             *indicators,
-            gap,
             tstate_widget,
-            ir_data_widget,
             ir_opcode_widget,
+            ir_data_widget,
             pc_widget,
         )
         m.submodules.control_sequence = control_sequence
@@ -112,15 +114,29 @@ class SAP1Panel(wiring.Component):
         wiring.connect(m, control_sequence.panel, m.submodules.panel_control.source)
 
         # Memory Display
-        m.submodules.ram_widget = ram_widget = RAMPanel(sap1.memory.panel_port)
+        ram_widget = RAMPanel(sap1.memory.panel_port)
         m.d.comb += [
             ram_widget.address_register.eq(sap1.memory_address_register.data_out),
             ram_widget.mem_read.eq(sap1.data_bus.is_selected("memory")),
             ram_widget.mem_write.eq(sap1.memory.write_enable),
         ]
+        m.submodules.memory_sequence = SequenceWidget(
+            ram_widget,
+            make_register(m, (1, 1, 1), sap1.memory_address_register, flip=True),
+        )
         m.submodules.panel_ram = LEDPanel()
         m.d.comb += self.mem_dout.eq(m.submodules.panel_ram.dout)
-        wiring.connect(m, ram_widget.panel, m.submodules.panel_ram.source)
+        wiring.connect(m, m.submodules.memory_sequence.panel, m.submodules.panel_ram.source)
+
+        # Bus Display
+        m.submodules.bus_widget = bus_widget = make_register(
+            m,
+            (0, 2, 0),
+            sap1.data_bus.bus_value
+        )
+        m.submodules.panel_bus = LEDPanel()
+        m.d.comb += self.bus_dout.eq(m.submodules.panel_bus.dout)
+        wiring.connect(m, bus_widget.panel, m.submodules.panel_bus.source)
 
         return m
 

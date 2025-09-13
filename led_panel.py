@@ -106,8 +106,10 @@ def make_register(
     m: Module,
     color: tuple[int, int, int],
     source: wiring.Component | Value,
+    *,
     read: Value | None = None,
     write: Value | None = None,
+    flip: bool = False,
 ):
     sig_source: Value
     match source:
@@ -123,7 +125,7 @@ def make_register(
 
     reg_widget = RegisterWidget(color, len(sig_source))
 
-    m.d.comb += reg_widget.reg.eq(sig_source)
+    m.d.comb += reg_widget.reg.eq(sig_source if not flip else sig_source[::-1])
     if read is not None:
         m.d.comb += reg_widget.reg_read.eq(read)
     if write is not None:

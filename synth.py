@@ -23,18 +23,21 @@ class SAP1_Nano(TangNano20kPlatform):
         Resource(
             "display_clk",
             0,
-            Pins("55", dir="o"),
-            Attrs(IO_TYPE="LVCMOS33", PULL_MODE="UP"),
+            Pins("53", dir="o"),
+            # No pull-up (the nano20k board has an external pull-up + level shifter on this line )
+            Attrs(IO_TYPE="LVCMOS33"),
         ),
         Resource(
             "display_dio",
             0,
-            Pins("49", dir="o"),
-            Attrs(IO_TYPE="LVCMOS33", PULL_MODE="UP"),
+            Pins("52", dir="o"),
+            # No pull-up (the nano20k board has an external pull-up + level shifter on this line )
+            Attrs(IO_TYPE="LVCMOS33"),
         ),
-        Resource("panel_alu", 0, Pins("73", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
-        Resource("panel_ctrl", 0, Pins("74", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
+        Resource("panel_ctrl", 0, Pins("73", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
+        Resource("panel_alu", 0, Pins("74", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
         Resource("panel_mem", 0, Pins("75", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
+        Resource("panel_bus", 0, Pins("85", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
     ]
 
 
@@ -116,8 +119,8 @@ MULTIPLY_PROG = [
     0,  # b
     0x1,  # c: c1
     0,  # d: result
-    9,  # e: x
-    9,  # f: y
+    3,  # e: x
+    14,  # f: y
 ]
 
 
@@ -134,6 +137,7 @@ if __name__ == "__main__":
     m.d.comb += platform.request("panel_alu").o.eq(m.submodules.panel_glue.alu_dout)
     m.d.comb += platform.request("panel_ctrl").o.eq(m.submodules.panel_glue.ctrl_dout)
     m.d.comb += platform.request("panel_mem").o.eq(m.submodules.panel_glue.mem_dout)
+    m.d.comb += platform.request("panel_bus").o.eq(m.submodules.panel_glue.bus_dout)
 
     print("Building...")
     platform.build(
