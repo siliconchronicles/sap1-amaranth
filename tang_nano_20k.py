@@ -75,3 +75,9 @@ class TangNano20kPlatform(GowinPlatform):
             subprocess.check_call(
                 ["openFPGALoader", "-b", "tangnano20k", bitstream_filename]
             )
+
+# Update template
+_base_yosys_template = TangNano20kPlatform._apicula_file_templates["{{name}}.ys"]
+TangNano20kPlatform._apicula_file_templates["{{name}}.ys"] = (
+    _base_yosys_template.replace("synth_gowin", "synth_gowin -family gw2a")
+)

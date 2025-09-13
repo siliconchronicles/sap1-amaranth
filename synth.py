@@ -136,4 +136,8 @@ if __name__ == "__main__":
     m.d.comb += platform.request("panel_mem").o.eq(m.submodules.panel_glue.mem_dout)
 
     print("Building...")
-    platform.build(m, do_program=False)
+    platform.build(
+        m,
+        do_program=False,
+        add_preferences='CLOCK_LOC "clk27_0__io" BUFG;',  # Put clock in global network
+    )
