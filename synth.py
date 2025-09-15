@@ -3,6 +3,7 @@ from amaranth import Module
 from amaranth.build import Resource, Pins, Attrs
 from amaranth.lib import wiring
 from amaranth.lib.cdc import FFSynchronizer
+from front_panel import SwitchScanner, clocked_scanner
 from sap1_panel import SAP1Panel
 from tm1637 import TM1637, DecimalDecoder
 from tang_nano_20k import TangNano20kPlatform
@@ -14,12 +15,14 @@ from clock_control import ClockControl
 
 class SAP1_Nano(TangNano20kPlatform):
     resources = TangNano20kPlatform.resources + [
+        # Output register (parallel). Not used in the demo build, but useful for testing.
         Resource(
             "rout",
             0,
             Pins("76 80 42 41 56 54 51 48", dir="o"),
             Attrs(IO_TYPE="LVCMOS33"),
         ),
+        # TM1637 7-segment display
         Resource(
             "display_clk",
             0,
@@ -34,10 +37,24 @@ class SAP1_Nano(TangNano20kPlatform):
             # No pull-up (the nano20k board has an external pull-up + level shifter on this line )
             Attrs(IO_TYPE="LVCMOS33"),
         ),
+        # LED strips control lines
         Resource("panel_ctrl", 0, Pins("73", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
         Resource("panel_alu", 0, Pins("74", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
         Resource("panel_mem", 0, Pins("75", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
         Resource("panel_bus", 0, Pins("85", dir="o"), Attrs(IO_TYPE="LVCMOS33")),
+        # Switch matrix (16x1)
+        Resource(
+            "select",
+            0,
+            Pins("26 29 30 31", dir="o"),
+            Attrs(IO_TYPE="LVCMOS33"),
+        ),
+        Resource(
+            "scan",
+            0,
+            Pins("72", dir="i"),
+            Attrs(IO_TYPE="LVCMOS33"),
+        ),
     ]
 
 
@@ -57,9 +74,30 @@ class Display(wiring.Elaboratable):
 
 
 class TangGlue(wiring.Elaboratable):
-    def __init__(self, sap1, clock_control, *args, **kwargs):
+
+    INTERNAL_BUTTONS = False  # Set to True to use internal buttons for clock control
+
+    LAYOUT = {
+        "sign": 12,
+        "mode": 13,
+        "next": 14,
+        "b7": 3,
+        "b6": 4,
+        "b5": 5,
+        "b4": 6,
+        "b3": 8,
+        "b2": 9,
+        "b1": 10,
+        "b0": 11,
+        "write": 0,
+        "slow": 1,
+        "fast": 2,
+    }
+
+    def __init__(self, sap1, clock_control, front_panel: Module, *args, **kwargs):
         self.sap1 = sap1
         self.clock_control = clock_control
+        self.front_panel: SwitchScanner = front_panel.submodules.scanner
         super().__init__(*args, **kwargs)
 
     def elaborate(self, platform: SAP1_Nano):
@@ -93,11 +131,23 @@ class TangGlue(wiring.Elaboratable):
         ]
 
         # Connect clock controls
-        button_0 = platform.request("button", 0)
-        button_1 = platform.request("button", 1)
 
-        m.submodules.button_0_sync = FFSynchronizer(button_0.i, self.clock_control.slow)
-        m.submodules.button_1_sync = FFSynchronizer(button_1.i, self.clock_control.fast)
+        # Use the following to use internal buttons
+        if self.INTERNAL_BUTTONS:
+            button_0 = platform.request("button", 0)
+            button_1 = platform.request("button", 1)
+
+            m.submodules.button_0_sync = FFSynchronizer(button_0.i, self.clock_control.slow)
+            m.submodules.button_1_sync = FFSynchronizer(button_1.i, self.clock_control.fast)
+        else:
+            scan_sync = platform.request("scan").i
+            m.submodules.scan_sync = FFSynchronizer(scan_sync, self.front_panel.scan, init=1)
+            m.d.comb += [
+                platform.request("select").o.eq(self.front_panel.selector),
+                self.clock_control.slow.eq(self.front_panel.status[self.LAYOUT["slow"]]),
+                self.clock_control.fast.eq(self.front_panel.status[self.LAYOUT["fast"]]),
+            ]
+
 
         m.d.comb += self.clock_control.hlt.eq(sap1.halted)
 
@@ -130,10 +180,13 @@ if __name__ == "__main__":
     m = Module()
 
     # Create submodules
+    m.submodules.front_panel = front_panel = clocked_scanner()
+
     m.submodules.clock_control = cc = ClockControl()
     m.submodules.sap1 = sap1 = cc.apply_to(BenEater(MULTIPLY_PROG))
-    m.submodules.glue = TangGlue(sap1, cc)
+    m.submodules.glue = TangGlue(sap1, cc, front_panel)
     m.submodules.panel_glue = SAP1Panel(sap1)
+
     m.d.comb += platform.request("panel_alu").o.eq(m.submodules.panel_glue.alu_dout)
     m.d.comb += platform.request("panel_ctrl").o.eq(m.submodules.panel_glue.ctrl_dout)
     m.d.comb += platform.request("panel_mem").o.eq(m.submodules.panel_glue.mem_dout)
