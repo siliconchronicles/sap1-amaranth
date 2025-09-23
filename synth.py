@@ -157,16 +157,16 @@ class TangGlue(wiring.Elaboratable):
 MULTIPLY_PROG = [
     0x1E,  # 0: LDA x
     0x3C,  # 1: SUB c1
-    0x75,  # 2: JC 5
-    0x1D,  # 3: LDA result
-    0xF0,  # 4: HLT
-    0x4E,  # 5: STA x
-    0x1D,  # 6: LDA result
-    0x2F,  # 7: ADD y
-    0xE0,  # 8: OUT
-    0x4D,  # 9: STA result
-    0x60,  # a: JMP 0
-    0,  # b
+    0x74,  # 2: JC 4
+    0xF0,  # 3: HLT
+    0x4E,  # 4: STA x
+    0x1D,  # 5: LDA result
+    0x2F,  # 6: ADD y
+    0xE0,  # 7: OUT
+    0x4D,  # 8: STA result
+    0x60,  # 9: JMP 0
+    0,  # a
+    0xff,  # b
     0x1,  # c: c1
     0,  # d: result
     3,  # e: x
