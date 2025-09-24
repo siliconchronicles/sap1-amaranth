@@ -134,11 +134,9 @@ with m.Switch(bus_driver):
         m.d.comb += bus_data.eq(ram_rdport.data)
 
 # Control logic
-sequencer = Signal(range(5))  # 5 states: 0-4
+sequencer = Signal(5, init=1)  # 5 states: 0-4, one-hot encoded
 with m.If(~halted):
-    m.d.sync += sequencer.eq(sequencer + 1)
-    with m.If(sequencer == 4):
-        m.d.sync += sequencer.eq(0)
+    m.d.sync += sequencer.eq(sequencer.rotate_left(1))
 
 opcode = ir_opcode.as_value()  # Numeric value for breakdown
 is_alu = opcode.matches("000-")  # ADD or SUB
@@ -149,56 +147,56 @@ is_store = ir_opcode.matches(Instruction.STA)  # only STA
 is_load = opcode.matches("0-11")  # LDA, LDI
 
 # Decode who drives the bus in each step
-with m.Switch(sequencer):
-    with m.Case(0):
-        # Fetch phase: put PC on the bus to load MAR
-        m.d.comb += bus_driver.eq(BusDriver.PC),
-    with m.Case(1):
-        # Fetch phase: put RAM output on the bus to load IR
-        m.d.comb += bus_driver.eq(BusDriver.RAM)
-    with m.Case(2):
-        # At this step we put the operand on the bus, if any
-        # Typically this is the lower half of IR, except for OUT (HLT doesn't care)
-        m.d.comb += bus_driver.eq(Mux(operand_is_a, BusDriver.A, BusDriver.IR))
-    with m.Case(3):
-        # We need A for STA, memory address for LDA, ADD, SUB; other instructions don't use step 3
-        m.d.comb += bus_driver.eq(Mux(is_store, BusDriver.A, BusDriver.RAM))
-    with m.Case(4):
-        # Only ADD and SUB need step 4, both need ALU output
-        m.d.comb += bus_driver.eq(BusDriver.ALU)
+with m.If(sequencer[0]):
+    # Fetch phase: put PC on the bus to load MAR
+    m.d.comb += bus_driver.eq(BusDriver.PC)
+with m.Elif(sequencer[1]):
+    # Fetch phase: put RAM output on the bus to load IR
+    m.d.comb += bus_driver.eq(BusDriver.RAM)
+with m.Elif(sequencer[2]):
+    # At this step we put the operand on the bus, if any
+    # Typically this is the lower half of IR, except for OUT (HLT doesn't care)
+    m.d.comb += bus_driver.eq(Mux(operand_is_a, BusDriver.A, BusDriver.IR))
+with m.Elif(sequencer[3]):
+    # We need A for STA, memory address for LDA, ADD, SUB; other instructions don't use step 3
+    m.d.comb += bus_driver.eq(Mux(is_store, BusDriver.A, BusDriver.RAM))
+with m.Elif(sequencer[4]):
+    # Only ADD and SUB need step 4, both need ALU output
+    m.d.comb += bus_driver.eq(BusDriver.ALU)
 
 m.d.comb += [
     # Execution control
-    ir_load.eq(sequencer == 1),  # Load IR in fetch phase
-    pc_inc.eq(sequencer == 1),  # Increment PC in fetch phase
+    ir_load.eq(sequencer[1]),  # Load IR in fetch phase
+    pc_inc.eq(sequencer[1]),  # Increment PC in fetch phase
     # ALU related control signals
-    ctrl_b_load.eq(is_alu & (sequencer == 3)),  # B load for ADD/SUB
+    ctrl_b_load.eq(is_alu & (sequencer[3])),  # B load for ADD/SUB
     alu_sub.eq(
         opcode[0]
     ),  # ALU subtract for SUB. we don't care about other instructions
-    alu_set_flags.eq(is_alu & (sequencer == 4)),  # Set flags after ALU operation
+    alu_set_flags.eq(is_alu & (sequencer[4])),  # Set flags after ALU operation
     # Memory related control signals
     mar_load.eq(
-        (sequencer == 0)  # Load MAR in fetch phase
+        (sequencer[0])  # Load MAR in fetch phase
         | (
-            operand_is_address & (sequencer == 2)
+            operand_is_address & (sequencer[2])
         )  # Load MAR for instructions with address operand
     ),
-    ram_write.eq(is_store & (sequencer == 3)),  # RAM write for STA
+    ram_write.eq(is_store & (sequencer[3])),  # RAM write for STA
     # Flow control
     pc_load.eq(
         is_jump
-        & (sequencer == 2)
+        & (sequencer[2])
         & (~opcode[0] | flag_carry)  # True for JMP, JZ, JC if condition met
         & (~opcode[1] | flag_zero)  # True for JMP, JC, JZ if condition met
     ),  # Load PC for jumps
     halted.eq(ir_opcode == Instruction.HLT),  # HLT instruction
     # Output register
-    out_load.eq((ir_opcode == Instruction.OUT) & (sequencer == 2)),  # OUT instruction
+    out_load.eq((ir_opcode == Instruction.OUT) & (sequencer[2])),  # OUT instruction
     # A register logic. This is used by several instructions at different times.
     ctrl_a_load.eq(
-        (is_load & (sequencer == 2 + ~opcode[2]))  # LDA[step 3] or LDI[step 2]
-        | (is_alu & (sequencer == 4))  # ADD/SUB[step 4]
+        (is_load & sequencer[2] & opcode[2])  # LDI[step 2]
+      | (is_load & sequencer[3] & ~opcode[2])  # LDA[step 3]
+      | (is_alu & sequencer[4])  # ADD/SUB[step 4]
     ),
 ]
 
@@ -206,7 +204,6 @@ m.d.comb += [
 #  - b_load could be always asserted! it only matters just before alu puts its result on the bus
 #    (which will happen if it was asserted), and b is never used for anything else so it doesn't matter if it
 #    gets loaded with other stuff at different times.
-#  - sequencer could be a one-hot register, which would make some decoding easier.
 
 if __name__ == "__main__":
     from amaranth.cli import main
