@@ -91,6 +91,8 @@ with m.If(alu_set_flags):
 
 # Memory Address Register
 mar, mar_load = new_register("mar", 4)
+mem_setup = Signal()  # A read/write op was just set up
+m.d.sync += mem_setup.eq(mar_load)
 
 # RAM
 m.submodules.ram = ram = Memory(shape=8, depth=16, init=PROGRAM)
@@ -108,8 +110,6 @@ out_reg, out_reg_load = new_register("out_reg", 8)
 
 # Bus driver
 with m.Switch(bus_driver):
-    with m.Case(BusDriver.A):
-        m.d.comb += bus_data.eq(a_reg)
     with m.Case(BusDriver.ALU):
         m.d.comb += bus_data.eq(alu_out)
     with m.Case(BusDriver.IR):
@@ -118,13 +118,16 @@ with m.Switch(bus_driver):
         m.d.comb += bus_data.eq(pc)
     with m.Case(BusDriver.RAM):
         m.d.comb += bus_data.eq(ram_rdport.data)
+    with m.Case(BusDriver.A):
+        m.d.comb += bus_data.eq(a_reg)
 
 # Control logic
 sequencer = Signal(5, init=1)  # 5 states: 0-4, one-hot encoded
 with m.If(~halted):
     m.d.sync += sequencer.eq(sequencer.rotate_left(1))
 
-# Utility computations for decoding
+# Utility computations for decoding. All based on 3:8 decoding of instruction, and
+# possibly sequence bits
 opcode = ir_opcode.as_value()  # Numeric value for breakdown
 # is_alu: ADD or SUB. will set flags and load a on step 4
 is_alu = opcode.matches("000-") & sequencer[4]
@@ -133,7 +136,7 @@ is_store = opcode.matches("001-")  # only STA.
 # is_load: LDA, LDI. Will load A. last bit controls which step is the load
 is_load = opcode.matches("010-")
 # is_jump: JMP, JC, JZ. will conditionally set PC based on the last 2 bits
-is_jump = opcode.matches("100-", "101-")  # .
+is_jump = opcode.matches("100-", "101-") & sequencer[2]
 # operand_is_a: A drives the bus on step 2. Otherwise IR is driven
 operand_is_a = opcode.matches("111-")  # Only OUT, HLT.
 
@@ -155,6 +158,7 @@ with m.Elif(sequencer[4]):
     # Only ADD and SUB need step 4, both need ALU output
     m.d.comb += bus_driver.eq(BusDriver.ALU)
 
+
 m.d.comb += [
     # Execution control
     ir_load.eq(sequencer[1]),  # Load IR in fetch phase
@@ -173,7 +177,6 @@ m.d.comb += [
     # Flow control
     pc_load.eq(
         is_jump
-        & sequencer[2]
         & (~opcode[0] | flag_carry)  # True for JMP, JZ, JC if condition met
         & (~opcode[1] | flag_zero)  # True for JMP, JC, JZ if condition met
     ),  # Load PC for jumps
@@ -182,9 +185,9 @@ m.d.comb += [
     out_reg_load.eq((ir_opcode == Instruction.OUT) & sequencer[2]),  # OUT instruction
     # A register logic. This is used by several instructions at different times.
     a_reg_load.eq(
-        (is_load & sequencer[2] & ~opcode[0])  # LDI[step 2]
+        (is_load & sequencer[2])  # LDI[step 2]. Also for LDA but it's overwritten
         | (is_load & sequencer[3] & opcode[0])  # LDA[step 3]
-        | (is_alu)  # ADD/SUB[step 4]
+        | is_alu  # ADD/SUB[step 4]
     ),
 ]
 
