@@ -9,7 +9,7 @@ from .monolith import (
 if __name__ == "__main__":
 
     if len(sys.argv) > 1 and sys.argv[1] == "synth":
-        from synth import SAP1_Nano
+        from sap1.synth import SAP1_Nano
 
         platform = SAP1_Nano()
         m.d.comb += platform.request("rout").o.eq(out_reg)
