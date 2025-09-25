@@ -9,7 +9,7 @@ from tm1637 import TM1637, DecimalDecoder
 from tang_nano_20k import TangNano20kPlatform
 
 
-from sap1 import SAP1
+from sap1.core.sap1 import SAP1
 from clock_control import ClockControl
 
 

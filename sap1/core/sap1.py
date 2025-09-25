@@ -1,13 +1,13 @@
 from amaranth.lib import wiring
 from amaranth import C, Cat, Module, Signal
-from counter_register import CounterRegister
 
-from data_bus import DataControlBus
-from partial_register import PartialRegister
-from register import Register
-from alu import ALU
-from memory import RAM
-import microcode
+from .counter_register import CounterRegister
+from .data_bus import DataControlBus
+from .partial_register import PartialRegister
+from .register import Register
+from .alu import ALU
+from .memory import RAM
+from . import microcode
 
 DATA_BUS_WIDTH = 8
 ADDRESS_BUS_WIDTH = 4
@@ -151,10 +151,9 @@ class SAP1(wiring.Component):
                         generate(uinstr)
 
 
-
-
 if __name__ == "__main__":
     from amaranth.cli import main
+
     FIBONACCI = [
         0x51,  # LDI 1
         0x4E,  # STA e

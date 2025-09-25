@@ -17,13 +17,13 @@ supporting clock rates above 450MHz in the Tang Nano 20K) and small (slightly mo
 You can simulate the multiplication program with:
 
 ```
-python -m monolith.monolith simulate -c 160 -v monolith.vcd -w monolith.gtkw```
+python -m sap1.monolith simulate -c 160 -v monolith.vcd -w monolith.gtkw```
 ```
 
 You can synthesize the design for the Tang Nano 20K with:
 
 ```
-python -m monolith.monolith synth
+python -m sap1.monolith synth
 ```
 
 ## Implementation Details

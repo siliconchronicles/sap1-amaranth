@@ -1,7 +1,7 @@
 from amaranth import Module, Signal
 from amaranth.lib.wiring import Flow, In
 
-from register import Register
+from .register import Register
 
 
 class CounterRegister(Register):

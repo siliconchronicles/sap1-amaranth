@@ -3,7 +3,7 @@ from amaranth import Module
 from amaranth.sim import Simulator
 from amaranth.hdl._ast import Statement
 
-from sap1 import SAP1
+from sap1.core.sap1 import SAP1
 
 
 m = Module()
