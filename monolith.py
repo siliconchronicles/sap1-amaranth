@@ -35,8 +35,10 @@ class Instruction(enum.Enum, shape=4):
 
 
 PROGRAM = [94, 28, 46, 149, 240, 93, 15, 45, 224, 128, 0, 255, 1, 0, 3, 14]
-# PROGRAM = [Instruction.NOP] * 16  # NOP program
-# PROGRAM=list(range(Instruction.LDI.value(), Instruction.LDI.value()+16))  # LDI 0 --> LDI F
+# PROGRAM = [Instruction.NOP.value << 4] * 16  # NOP program
+# PROGRAM = list(
+#     range(struction.LDI.value << 4, (Instruction.LDI.value << 4) + 16)
+# )  # LDI 0 --> LDI F
 m = Module()
 
 
@@ -125,7 +127,7 @@ with m.If(~halted):
 # Utility computations for decoding
 opcode = ir_opcode.as_value()  # Numeric value for breakdown
 # is_alu: ADD or SUB. will set flags and load a on step 4
-is_alu = opcode.matches("000-")
+is_alu = opcode.matches("000-") & sequencer[4]
 # is_store: STA only. A drives the bus on step 3 (otherwise, RAM data does)
 is_store = opcode.matches("001-")  # only STA.
 # is_load: LDA, LDI. Will load A. last bit controls which step is the load
@@ -162,7 +164,7 @@ m.d.comb += [
     alu_sub.eq(
         opcode[0]
     ),  # ALU subtract for SUB. we don't care about other instructions
-    alu_set_flags.eq(is_alu & sequencer[4]),  # Set flags after ALU operation
+    alu_set_flags.eq(is_alu),  # Set flags after ALU operation
     # Memory related control signals
     mar_load.eq(
         sequencer[0] | sequencer[2]  # Load MAR for instruction or operand fetch
@@ -180,9 +182,9 @@ m.d.comb += [
     out_reg_load.eq((ir_opcode == Instruction.OUT) & sequencer[2]),  # OUT instruction
     # A register logic. This is used by several instructions at different times.
     a_reg_load.eq(
-        (is_load & sequencer[2] & ~opcode[2])  # LDI[step 2]
-        | (is_load & sequencer[3] & opcode[2])  # LDA[step 3]
-        | (is_alu & sequencer[4])  # ADD/SUB[step 4]
+        (is_load & sequencer[2] & ~opcode[0])  # LDI[step 2]
+        | (is_load & sequencer[3] & opcode[0])  # LDA[step 3]
+        | (is_alu)  # ADD/SUB[step 4]
     ),
 ]
 
