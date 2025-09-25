@@ -3,14 +3,14 @@ from amaranth import Module
 from amaranth.build import Resource, Pins, Attrs
 from amaranth.lib import wiring
 from amaranth.lib.cdc import FFSynchronizer
-from front_panel import SwitchScanner, clocked_scanner
-from sap1_panel import SAP1Panel
-from tm1637 import TM1637, DecimalDecoder
-from tang_nano_20k import TangNano20kPlatform
+from .front_panel import SwitchScanner, clocked_scanner
+from .sap1_panel import SAP1Panel
+from fpga_output.tm1637 import TM1637, DecimalDecoder
+from dev_boards.tang_nano_20k import TangNano20kPlatform
 
 
-from sap1.core.sap1 import SAP1
-from clock_control import ClockControl
+from .core.sap1 import SAP1
+from .clock_control import ClockControl
 
 
 class SAP1_Nano(TangNano20kPlatform):

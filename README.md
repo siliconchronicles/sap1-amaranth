@@ -12,7 +12,7 @@
   - The `800` indicate number of clock cycles
 - **Build**: `uv run -m sap1.core.sap1 generate output.v`
   - You can also use `--no-src` to make shorter Verilog
-- **Synthesize**: `uv run synth.py`. This builds files in `build/`
+- **Synthesize**: `uv run -m sap1.synth`. This builds files in `build/`
   - Constraints are generated in `top.cst`
   - Intermediate representation (RTLIL) in `top.il`
   - Flashable file in `top.fs`

@@ -3,7 +3,7 @@ from amaranth.lib import wiring
 from amaranth import Module, C
 
 from sap1.core.sap1 import SAP1
-from led_panel import (
+from fpga_output.led_panel import (
     LEDPanel,
     RAMPanel,
     RegisterWidget,

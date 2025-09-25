@@ -221,7 +221,7 @@ def clocked_tm1637(divisor = 27) -> Module:
 
 
 if __name__ == "__main__":
-    from tang_nano_20k import TangNano20kPlatform
+    from dev_boards.tang_nano_20k import TangNano20kPlatform
     from amaranth.build import Resource, Pins, Attrs
 
     class TM1637_Nano(TangNano20kPlatform):
