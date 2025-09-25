@@ -30,11 +30,12 @@ class Instruction(enum.Enum, shape=4):
     JC = 0b1001
     JZ = 0b1010
 
-    OUT = 0b1110
+    OUT = 0b1100
+
     HLT = 0b1111
 
 
-PROGRAM = [94, 28, 46, 149, 240, 93, 15, 45, 224, 128, 0, 255, 1, 0, 3, 14]
+PROGRAM = [94, 28, 46, 149, 240, 93, 15, 45, 192, 128, 0, 255, 1, 0, 3, 14]
 # PROGRAM = [Instruction.NOP.value << 4] * 16  # NOP program
 # PROGRAM = list(
 #     range(struction.LDI.value << 4, (Instruction.LDI.value << 4) + 16)
@@ -138,7 +139,8 @@ is_load = opcode.matches("010-")
 # is_jump: JMP, JC, JZ. will conditionally set PC based on the last 2 bits
 is_jump = opcode.matches("100-", "101-") & sequencer[2]
 # operand_is_a: A drives the bus on step 2. Otherwise IR is driven
-operand_is_a = opcode.matches("111-")  # Only OUT, HLT.
+operand_is_a = opcode.matches("110-")  # Only OUT
+is_halt = opcode.matches("111-")
 
 # Decode who drives the bus in each step
 with m.If(sequencer[0]):
@@ -180,7 +182,7 @@ m.d.comb += [
         & (~opcode[0] | flag_carry)  # True for JMP, JZ, JC if condition met
         & (~opcode[1] | flag_zero)  # True for JMP, JC, JZ if condition met
     ),  # Load PC for jumps
-    halted.eq(ir_opcode == Instruction.HLT),  # HLT instruction
+    halted.eq(is_halt),  # HLT instruction
     # Output register
     out_reg_load.eq((ir_opcode == Instruction.OUT) & sequencer[2]),  # OUT instruction
     # A register logic. This is used by several instructions at different times.
