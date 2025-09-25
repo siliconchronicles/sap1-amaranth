@@ -8,11 +8,11 @@ from amaranth.lib.memory import Memory
 
 
 class BusDriver(enum.Enum):
-    A = 0
-    ALU = 1
-    IR = 2
-    PC = 3
-    RAM = 4
+    A = 1
+    ALU = 2
+    IR = 4
+    PC = 8
+    RAM = 16
 
 
 class Instruction(enum.Enum, shape=4):
@@ -38,7 +38,7 @@ class Instruction(enum.Enum, shape=4):
 PROGRAM = [94, 28, 46, 149, 240, 93, 15, 45, 192, 128, 0, 255, 1, 0, 3, 14]
 # PROGRAM = [Instruction.NOP.value << 4] * 16  # NOP program
 # PROGRAM = list(
-#     range(struction.LDI.value << 4, (Instruction.LDI.value << 4) + 16)
+#     range(Instruction.LDI.value << 4, (Instruction.LDI.value << 4) + 16)
 # )  # LDI 0 --> LDI F
 m = Module()
 
@@ -54,7 +54,7 @@ def new_register(name: str, shape: int) -> tuple[Signal, Signal]:
 # Bus
 bus_data = Signal(8)
 
-# Control signals
+# Control signals (register loads are defined with registers)
 bus_driver = Signal(BusDriver)  # Which component drives the bus
 ram_write = Signal()  # Write into RAM
 alu_sub = Signal()  # ALU mode: 0=add, 1=subtract
@@ -62,7 +62,7 @@ alu_set_flags = Signal()  # When asserted, set flags based on ALU result
 pc_inc = Signal()  # Increase PC
 halted = Signal()  # When asserted, halt the CPU
 
-# Instruction Register
+# Instruction Register, and its breakdown
 ir, ir_load = new_register("ir", 8)
 ir_opcode = Signal(Instruction)
 ir_operand = Signal(4)
@@ -70,7 +70,7 @@ m.d.comb += Cat(ir_operand, ir_opcode).eq(ir)
 
 # Program Counter
 pc, pc_load = new_register("pc", 4)
-with m.Elif(pc_inc):  # Hack: this continues the if inside new_register
+with m.Elif(pc_inc):  # Hack: this "elif" continues the if inside new_register
     m.d.sync += pc.eq(pc + 1)
 
 # A, B registers
