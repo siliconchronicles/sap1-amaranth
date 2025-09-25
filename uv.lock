@@ -42,25 +42,6 @@ wheels = [
 ]
 
 [[package]]
-name = "beneater-hdl"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "amaranth" },
-    { name = "amaranth-boards" },
-    { name = "yowasp-nextpnr-himbaechel-gowin" },
-    { name = "yowasp-yosys" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "amaranth", directory = "../../src/3rdparty/amaranth" },
-    { name = "amaranth-boards", git = "https://github.com/dmoisset/amaranth-boards" },
-    { name = "yowasp-nextpnr-himbaechel-gowin", specifier = ">=0.7.0.177.post611.dev0" },
-    { name = "yowasp-yosys" },
-]
-
-[[package]]
 name = "click"
 version = "8.1.8"
 source = { registry = "https://pypi.org/simple" }
@@ -186,6 +167,25 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/85/40/1520d68bfa07ab5a6f065a186815fb6610c86fe957bc065754e47f7b0840/rfc3986-2.0.0.tar.gz", hash = "sha256:97aacf9dbd4bfd829baad6e6309fa6573aaf1be3f6fa735c8ab05e46cecb261c", size = 49026 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ff/9a/9afaade874b2fa6c752c36f1548f718b5b83af81ed9b76628329dab81c1b/rfc3986-2.0.0-py2.py3-none-any.whl", hash = "sha256:50b1502b60e289cb37883f3dfd34532b8873c7de9f49bb546641ce9cbd256ebd", size = 31326 },
+]
+
+[[package]]
+name = "sap1-amaranth"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "amaranth" },
+    { name = "amaranth-boards" },
+    { name = "yowasp-nextpnr-himbaechel-gowin" },
+    { name = "yowasp-yosys" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "amaranth", directory = "../../src/3rdparty/amaranth" },
+    { name = "amaranth-boards", git = "https://github.com/dmoisset/amaranth-boards" },
+    { name = "yowasp-nextpnr-himbaechel-gowin", specifier = ">=0.7.0.177.post611.dev0" },
+    { name = "yowasp-yosys" },
 ]
 
 [[package]]

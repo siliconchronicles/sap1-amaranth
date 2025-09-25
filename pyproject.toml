@@ -1,7 +1,7 @@
 [project]
-name = "beneater-hdl"
+name = "sap1-amaranth"
 version = "0.1.0"
-description = "Add your description here"
+description = "Implementation of the SAP-1 computer architecture in Amaranth HDL"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

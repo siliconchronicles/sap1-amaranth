@@ -15,7 +15,7 @@ ADDRESS_BUS_WIDTH = 4
 assert ADDRESS_BUS_WIDTH <= DATA_BUS_WIDTH  # addresses are sent on the data bus!
 
 
-class BenEater(wiring.Component):
+class SAP1(wiring.Component):
 
     uINSTRUCTIONS_PER_INSTRUCTION = 5
 
@@ -149,3 +149,26 @@ class BenEater(wiring.Component):
                     seq_value = C(sequence, len(self.u_sequencer))
                     with m.Case(Cat(seq_value, C(opcode.value, 4))):
                         generate(uinstr)
+
+
+
+
+if __name__ == "__main__":
+    from amaranth.cli import main
+    FIBONACCI = [
+        0x51,  # LDI 1
+        0x4E,  # STA e
+        0x50,  # LDI 0
+        0xE0,  # OUT
+        0x2E,  # ADD e
+        0x4F,  # STA f
+        0x1E,  # LDA e
+        0x4D,  # STA d
+        0x1F,  # LDA f
+        0x4E,  # STA e
+        0x1D,  # LDA d
+        0x70,  # JC 0
+        0x63,  # JMP 3
+    ]
+    sap1 = SAP1(FIBONACCI)
+    main(sap1, ports=[])

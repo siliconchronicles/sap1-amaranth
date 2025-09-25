@@ -1,8 +1,8 @@
 from typing import Any
 from amaranth.lib import wiring
-from amaranth import Module, Signal, C
+from amaranth import Module, C
 
-from beneater import BenEater
+from sap1 import SAP1
 from led_panel import (
     LEDPanel,
     RAMPanel,
@@ -20,7 +20,7 @@ class SAP1Panel(wiring.Component):
     ctrl_dout: wiring.Out(1)
     bus_dout: wiring.Out(1)
 
-    def __init__(self, sap1: BenEater):
+    def __init__(self, sap1: SAP1):
         self.sap1 = sap1
         super().__init__()
 

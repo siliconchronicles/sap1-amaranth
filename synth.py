@@ -9,7 +9,7 @@ from tm1637 import TM1637, DecimalDecoder
 from tang_nano_20k import TangNano20kPlatform
 
 
-from beneater import BenEater
+from sap1 import SAP1
 from clock_control import ClockControl
 
 
@@ -183,7 +183,7 @@ if __name__ == "__main__":
     m.submodules.front_panel = front_panel = clocked_scanner()
 
     m.submodules.clock_control = cc = ClockControl()
-    m.submodules.sap1 = sap1 = cc.apply_to(BenEater(MULTIPLY_PROG))
+    m.submodules.sap1 = sap1 = cc.apply_to(SAP1(MULTIPLY_PROG))
     m.submodules.glue = TangGlue(sap1, cc, front_panel)
     m.submodules.panel_glue = SAP1Panel(sap1)
 

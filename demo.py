@@ -3,7 +3,7 @@ from amaranth import Module
 from amaranth.sim import Simulator
 from amaranth.hdl._ast import Statement
 
-from beneater import BenEater
+from sap1 import SAP1
 
 
 m = Module()
@@ -73,17 +73,17 @@ FIBONACCI = [
     0x63, # JMP 3
 ]
 
-be8 = m.submodules.be8 = BenEater(FIBONACCI)
+sap1 = m.submodules.sap1 = SAP1(FIBONACCI)
 
 
 def testbench() -> Iterator[Statement | None]:
-    dbus = be8.data_bus
-    # reg_a = be8.register_a
-    # reg_b = be8.register_b
-    pc = be8.program_counter
-    # mar = be8.memory_address_register
-    # memory = be8.memory
-    # alu = be8.alu
+    dbus = sap1.data_bus
+    # reg_a = sap1.register_a
+    # reg_b = sap1.register_b
+    pc = sap1.program_counter
+    # mar = sap1.memory_address_register
+    # memory = sap1.memory
+    # alu = sap1.alu
 
     # # ALU demo
     # yield alu.port_a.eq(0x56)
@@ -144,7 +144,7 @@ def testbench() -> Iterator[Statement | None]:
     # Full CPU
     cycles = 0
     MAX_CYCLES = 20000
-    while not (yield be8.halted):
+    while not (yield sap1.halted):
         yield
         cycles += 1
         if cycles >= MAX_CYCLES:
