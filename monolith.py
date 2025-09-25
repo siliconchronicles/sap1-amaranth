@@ -6,6 +6,7 @@ from amaranth import Signal, Module, Mux, Cat, unsigned
 from amaranth.lib import enum
 from amaranth.lib.memory import Memory
 
+
 class BusDriver(enum.Enum):
     A = 0
     ALU = 1
@@ -13,16 +14,17 @@ class BusDriver(enum.Enum):
     PC = 3
     RAM = 4
 
+
 class Instruction(enum.Enum, shape=4):
     # Instruction encoding:
     # This modifies Ben's encoding to be able to decode some signals from the opcode directly.
     ADD = 0b0000
     SUB = 0b0001
     STA = 0b0010
-    LDA = 0b0011
+    LDI = 0b0100
+    LDA = 0b0101
 
-    NOP = 0b0100
-    LDI = 0b0111
+    NOP = 0b0111
 
     JMP = 0b1000
     JC = 0b1001
@@ -31,77 +33,62 @@ class Instruction(enum.Enum, shape=4):
     OUT = 0b1110
     HLT = 0b1111
 
-PROGRAM = [62, 28, 46, 149, 240, 61, 15, 45, 224, 128, 0, 255, 1, 0, 3, 14]
 
+PROGRAM = [94, 28, 46, 149, 240, 93, 15, 45, 224, 128, 0, 255, 1, 0, 3, 14]
+# PROGRAM = [Instruction.NOP] * 16  # NOP program
+# PROGRAM=list(range(Instruction.LDI.value(), Instruction.LDI.value()+16))  # LDI 0 --> LDI F
 m = Module()
+
+
+def new_register(name: str, shape: int) -> tuple[Signal, Signal]:
+    reg = Signal(shape, name=name)
+    load = Signal(1, name=f"{name}_load")
+    with m.If(load):
+        m.d.sync += reg.eq(bus_data)
+    return reg, load
+
 
 # Bus
 bus_data = Signal(8)
 
-# Control signals: Bus
+# Control signals
 bus_driver = Signal(BusDriver)  # Which component drives the bus
-ctrl_a_load = Signal()
-ctrl_b_load = Signal()
-ir_load = Signal()
-pc_load = Signal()
-mar_load = Signal()
-ram_write = Signal()
-out_load = Signal()
-
-# Control signals: ALU
+ram_write = Signal()  # Write into RAM
 alu_sub = Signal()  # ALU mode: 0=add, 1=subtract
 alu_set_flags = Signal()  # When asserted, set flags based on ALU result
-
-# Control signals: Program Counter
-pc_inc = Signal()
-
-# Control signals: misc
+pc_inc = Signal()  # Increase PC
 halted = Signal()  # When asserted, halt the CPU
 
 # Instruction Register
+ir, ir_load = new_register("ir", 8)
 ir_opcode = Signal(Instruction)
 ir_operand = Signal(4)
-ir = Cat(ir_operand, ir_opcode)
-with m.If(ir_load):
-    m.d.sync += ir.eq(bus_data)
+m.d.comb += Cat(ir_operand, ir_opcode).eq(ir)
 
 # Program Counter
-pc = Signal(4)
-with m.If(pc_load):
-    m.d.sync += pc.eq(bus_data)
-with m.If(pc_inc):
+pc, pc_load = new_register("pc", 4)
+with m.Elif(pc_inc):  # Hack: this continues the if inside new_register
     m.d.sync += pc.eq(pc + 1)
 
-# A register
-a_reg = Signal(8)
-with m.If(ctrl_a_load):
-    m.d.sync += a_reg.eq(bus_data)
-
-# B register
-b_reg = Signal(8)
-with m.If(ctrl_b_load):
-    m.d.sync += b_reg.eq(bus_data)
+# A, B registers
+a_reg, a_reg_load = new_register("a_reg", 8)
+b_reg, b_reg_load = new_register("b_reg", 8)
 
 # ALU
 alu_out = Signal(8)
 alu_rhs = Signal(unsigned(8))
-m.d.comb += alu_rhs.eq(Mux(alu_sub, -b_reg, b_reg))
+m.d.comb += alu_rhs.eq(Mux(alu_sub, ~b_reg, b_reg))
 alu_carry = Signal()
-m.d.comb += Cat(alu_out, alu_carry).eq(a_reg + alu_rhs)
+m.d.comb += Cat(alu_out, alu_carry).eq(a_reg + alu_rhs + alu_sub)
 
 # ALU: Flags
 flag_zero = Signal()
 flag_carry = Signal()
 with m.If(alu_set_flags):
-    m.d.sync += [
-        flag_zero.eq(alu_out == 0),
-        flag_carry.eq(alu_carry)
-    ]
+    m.d.sync += [flag_zero.eq(alu_out == 0), flag_carry.eq(alu_carry)]
 
 # Memory Address Register
-mar = Signal(4)
-with m.If(mar_load):
-    m.d.sync += mar.eq(bus_data)
+mar, mar_load = new_register("mar", 4)
 
 # RAM
 m.submodules.ram = ram = Memory(shape=8, depth=16, init=PROGRAM)
@@ -110,15 +97,12 @@ ram_wrport = ram.write_port()
 m.d.comb += [
     ram_rdport.addr.eq(mar),
     ram_wrport.addr.eq(mar),
+    ram_wrport.data.eq(bus_data),
     ram_wrport.en.eq(ram_write),
 ]
-with m.If(ram_write):
-    m.d.comb += ram_wrport.data.eq(bus_data)
 
 # Output register
-out_reg = Signal(8)
-with m.If(out_load):
-    m.d.sync += out_reg.eq(bus_data)
+out_reg, out_reg_load = new_register("out_reg", 8)
 
 # Bus driver
 with m.Switch(bus_driver):
@@ -138,13 +122,18 @@ sequencer = Signal(5, init=1)  # 5 states: 0-4, one-hot encoded
 with m.If(~halted):
     m.d.sync += sequencer.eq(sequencer.rotate_left(1))
 
+# Utility computations for decoding
 opcode = ir_opcode.as_value()  # Numeric value for breakdown
-is_alu = opcode.matches("000-")  # ADD or SUB
-operand_is_address = opcode.matches("00--")  # ADD, SUB, LDA or STA
-is_jump = opcode.matches("10--")  # JMP, JC, JZ
-operand_is_a = opcode.matches("11--")  # Only OUT, HLT
-is_store = ir_opcode.matches(Instruction.STA)  # only STA
-is_load = opcode.matches("0-11")  # LDA, LDI
+# is_alu: ADD or SUB. will set flags and load a on step 4
+is_alu = opcode.matches("000-")
+# is_store: STA only. A drives the bus on step 3 (otherwise, RAM data does)
+is_store = opcode.matches("001-")  # only STA.
+# is_load: LDA, LDI. Will load A. last bit controls which step is the load
+is_load = opcode.matches("010-")
+# is_jump: JMP, JC, JZ. will conditionally set PC based on the last 2 bits
+is_jump = opcode.matches("100-", "101-")  # .
+# operand_is_a: A drives the bus on step 2. Otherwise IR is driven
+operand_is_a = opcode.matches("111-")  # Only OUT, HLT.
 
 # Decode who drives the bus in each step
 with m.If(sequencer[0]):
@@ -169,42 +158,64 @@ m.d.comb += [
     ir_load.eq(sequencer[1]),  # Load IR in fetch phase
     pc_inc.eq(sequencer[1]),  # Increment PC in fetch phase
     # ALU related control signals
-    ctrl_b_load.eq(is_alu & (sequencer[3])),  # B load for ADD/SUB
+    b_reg_load.eq(1),  # always load. it's always read after a write
     alu_sub.eq(
         opcode[0]
     ),  # ALU subtract for SUB. we don't care about other instructions
-    alu_set_flags.eq(is_alu & (sequencer[4])),  # Set flags after ALU operation
+    alu_set_flags.eq(is_alu & sequencer[4]),  # Set flags after ALU operation
     # Memory related control signals
     mar_load.eq(
-        (sequencer[0])  # Load MAR in fetch phase
-        | (
-            operand_is_address & (sequencer[2])
-        )  # Load MAR for instructions with address operand
+        sequencer[0] | sequencer[2]  # Load MAR for instruction or operand fetch
     ),
-    ram_write.eq(is_store & (sequencer[3])),  # RAM write for STA
+    ram_write.eq(is_store & sequencer[3]),  # RAM write for STA
     # Flow control
     pc_load.eq(
         is_jump
-        & (sequencer[2])
+        & sequencer[2]
         & (~opcode[0] | flag_carry)  # True for JMP, JZ, JC if condition met
         & (~opcode[1] | flag_zero)  # True for JMP, JC, JZ if condition met
     ),  # Load PC for jumps
     halted.eq(ir_opcode == Instruction.HLT),  # HLT instruction
     # Output register
-    out_load.eq((ir_opcode == Instruction.OUT) & (sequencer[2])),  # OUT instruction
+    out_reg_load.eq((ir_opcode == Instruction.OUT) & sequencer[2]),  # OUT instruction
     # A register logic. This is used by several instructions at different times.
-    ctrl_a_load.eq(
-        (is_load & sequencer[2] & opcode[2])  # LDI[step 2]
-      | (is_load & sequencer[3] & ~opcode[2])  # LDA[step 3]
-      | (is_alu & sequencer[4])  # ADD/SUB[step 4]
+    a_reg_load.eq(
+        (is_load & sequencer[2] & ~opcode[2])  # LDI[step 2]
+        | (is_load & sequencer[3] & opcode[2])  # LDA[step 3]
+        | (is_alu & sequencer[4])  # ADD/SUB[step 4]
     ),
 ]
 
-# Ideas:
-#  - b_load could be always asserted! it only matters just before alu puts its result on the bus
-#    (which will happen if it was asserted), and b is never used for anything else so it doesn't matter if it
-#    gets loaded with other stuff at different times.
 
 if __name__ == "__main__":
     from amaranth.cli import main
-    main(m, ports=[bus_data, bus_driver, ir_opcode, ir_operand, pc, sequencer, a_reg, b_reg, alu_out, flag_zero, flag_carry, mar, out_reg])
+    import sys
+
+    if len(sys.argv) > 1 and sys.argv[1] == "synth":
+        from synth import SAP1_Nano
+
+        platform = SAP1_Nano()
+        m.d.comb += platform.request("rout").o.eq(out_reg)
+        platform.build(
+            m,
+            do_program=False,
+        )
+    else:
+        main(
+            m,
+            ports=[
+                bus_data,
+                bus_driver,
+                ir_opcode,
+                ir_operand,
+                pc,
+                sequencer,
+                a_reg,
+                b_reg,
+                alu_out,
+                flag_zero,
+                flag_carry,
+                mar,
+                out_reg,
+            ],
+        )
