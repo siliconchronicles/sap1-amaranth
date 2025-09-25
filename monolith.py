@@ -92,8 +92,6 @@ with m.If(alu_set_flags):
 
 # Memory Address Register
 mar, mar_load = new_register("mar", 4)
-mem_setup = Signal()  # A read/write op was just set up
-m.d.sync += mem_setup.eq(mar_load)
 
 # RAM
 m.submodules.ram = ram = Memory(shape=8, depth=16, init=PROGRAM)
