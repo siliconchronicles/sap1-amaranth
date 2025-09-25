@@ -5,6 +5,8 @@ from amaranth.hdl._ast import Statement
 
 from sap1.core.sap1 import SAP1
 
+# This shows how to instantiate and simulate the SAP-1 CPU.
+# It should be the basis for building a testbench. TBD.
 
 m = Module()
 
