@@ -153,7 +153,7 @@ with m.Elif(sequencer[2]):
     m.d.comb += bus_driver.eq(Mux(operand_is_a, BusDriver.A, BusDriver.IR))
 with m.Elif(sequencer[3]):
     # We need A for STA, memory address for LDA, ADD, SUB; other instructions don't use step 3
-    m.d.comb += bus_driver.eq(Mux(is_store, BusDriver.A, BusDriver.RAM))
+    m.d.comb += bus_driver.eq(Mux(is_store, BusDriver.A, BusDriver.RAM)) # We could use opcode[1]. For some reason, it's slower.
 with m.Elif(sequencer[4]):
     # Only ADD and SUB need step 4, both need ALU output
     m.d.comb += bus_driver.eq(BusDriver.ALU)
