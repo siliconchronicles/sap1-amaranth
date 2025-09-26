@@ -5,7 +5,7 @@ from amaranth.lib import wiring
 from amaranth.lib.cdc import FFSynchronizer
 from .front_panel import SwitchScanner, clocked_scanner
 from .sap1_panel import SAP1Panel
-from fpga_output.tm1637 import TM1637, DecimalDecoder
+from fpga_io.tm1637 import TM1637, DecimalDecoder
 from dev_boards.tang_nano_20k import TangNano20kPlatform
 
 

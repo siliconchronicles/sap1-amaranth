@@ -1,7 +1,7 @@
 from amaranth import Cat, EnableInserter, Module, Signal
 from amaranth.lib import wiring
 
-from fpga_output.tm1637 import SlowEnable
+from fpga_io.tm1637 import SlowEnable
 
 class SwitchScanner(wiring.Component):
     """
