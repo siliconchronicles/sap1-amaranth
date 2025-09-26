@@ -156,7 +156,7 @@ class TangGlue(wiring.Elaboratable):
             self.prog_control.sw_mode.eq(self.front_panel.status[self.LAYOUT["mode"]]),
             self.prog_control.sw_next.eq(self.front_panel.status[self.LAYOUT["next"]]),
             self.prog_control.sw_write.eq(self.front_panel.status[self.LAYOUT["write"]]),
-        ]
+        ] + [sap1.input_switches[i].eq(self.front_panel.status[self.LAYOUT[f"b{i}"]]) for i in range(8)]
         # The clock outputs manage the clock_control module
         m.d.comb += [
             self.clock_control.override_enable.eq(self.prog_control.is_programming),

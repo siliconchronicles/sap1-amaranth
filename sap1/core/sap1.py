@@ -140,6 +140,12 @@ class SAP1(wiring.Component):
                 self.halted.eq(0),
                 self.u_sequencer.eq(0),
             ]
+            m.d.comb += [
+                *self.data_bus.select_outputs(""),  # disconnect all outputs
+                self.data_bus.select_input(None),  # disconnect all inputs
+                self.alu.update_flags.eq(0),
+                self.program_counter.count_enable.eq(0),
+            ]
         with m.If(self.addr_inc_override):
             m.d.comb += [
                 self.program_counter.count_enable.eq(1),
