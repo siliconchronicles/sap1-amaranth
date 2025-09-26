@@ -1,84 +1,103 @@
 # BE-8 instruction set:
 
-## HLT(0-): Halt
-
-- enables the HLT signal
-
-In the original BE8 this stops the clock, which stops the CPU. In this model I can not
-control the clock easily, so I instead have a flip flop which disables all of the control
-logic
-
-## NOP(1-): No Operation
+## NOP(0-): No Operation
 
 Does nothing. Still needs to go through the fetch/decode cycle common to every instruction:
 
-- put PC into MAR
-- put memory data into IR
-- increase PC
+- S0: put PC into MAR
+- S1: put memory data into IR
+- S1 (concurrently):increase PC
 
-## LDA(2M): Load A from address M
+Equivalent code: `pass`
 
-- reads from memory M
-- stores value in A
+## LDA(1M): Load A from address M
 
-## LDI(3I): Load A from immediate
+- S2: prepares reads from memory M (stores IR into MAR)
+- S3: stores RAM value in A
 
-- put IR into the bus
-- stores into A
+Equivalent code: `A = RAM[M]`
+
+## ADD(2M): Add A plus value at address M, store into A
+
+- S2: sets up to read M 
+- S3: stores into B
+- S4: ALU adds and stores in A, update flags.
+
+Equivalent code: `A += RAM[M]; ZF = (A == 0); CF = (A > 0xFF)`
+
+## SUB(3M): Sub A minus value at address M, store into A
+
+- S2: sets up to read M 
+- S3: stores into B
+- S4: ALU substract and stores in A, update flags.
+
+Equivalent code: `A += -RAM[M]; ZF = (A == 0); CF = (A > 0xFF)`
 
 ## STA(4M): Store A at address M
 
-- reads from A
-- stores into M
+- S2: sets up write at adress M
+- S3: reads from A and stores into RAM
 
-## ADD(5M): Add A plus value at address M, store into A
+Equivalent code: `RAM[M] = A`
 
-- reads M 
-- stores into B
-- alu adds and stores in A, flags set
+## LDI(5I): Load A from immediate
 
-## SUB(6M): Sub A minus value at address M, store into A
+- S2: put IR into the bus, read into A
 
-- reads M 
-- stores into B
-- alu subs and stores in A, flags set
+Equivalent code: `A = I` 
 
-## JMP(7M): Jump to M
+## JMP(6M): Jump to M
 
-- move IR into PC
+- S2: Move IR into PC
+
+Equivalent code: `PC = M`
+
+## JC(7M): Jump to M if carry
+
+- S2: move IR into PC (if carry)
+
+Equivalent code: `if CF: PC = M`
 
 ## JZ(8M): Jump to M if zero
 
-- move IR into PC (if zero)
+- S3: move IR into PC (if zero)
 
-## JC(9M): Jump to M if carry
+Equivalent code: `if ZF: PC = M`
 
-- move IR into PC (if carry)
+## OUT(E-): Output A
 
-## OUT(F-): Output A
+- S2: reads from A, stores into output
 
-- reads from A
-- stores into output
+Equivalent code: `print(A)`
+
+## HLT(F-): Halt
+
+- enables the HLT signal
+
+In the original SAP-1 this stops the clock, which stops the CPU. In FPGAs messing with a clock is tricky, so I instead have a flip flop which disables the sequencer from progressing.
+
+Equivalent code: `halted = True; stop()`
 
 ## Examples
 
 ### Multiplication program
 
-```
-0x0 31 LDI 1
-0x1 4C STA tmp
-0x2 2D loop: LDA op1
-0x3 5F ADD result
-0x4 4F STA result
-0x5 5E LDA op2
-0x6 6C SUB tmp
-0x7 89 JZ print
-0x8 72 JMP loop
-0x9 2F print: LDA result
-0xA F0 OUT
-0xB 7B stop: JMP stop
-0xC 00 [tmp]
-0xD 07 [op1]
-0xE 05 [op2]  # Countdown
-0xF 00 [result] = 0
-```
+|Addr|Opcode|Location name|Assembly code|Notes|
+|---:|-----:|-------------|-------------|-----|
+|  00|   1E |`top`        |`LDA x`      |Decrease x by one|
+|  01|   3C |             |`SUB one`    ||
+|  02|   4E |             |`STA x`      ||
+|  03|   75 |             |`JC continue`|if x is 0, halt|
+|  04|   F0 |             |`HLT`        ||
+|  05|   1D |`continue`   |`LDA result` |Increase result by y|
+|  06|   2F |             |`ADD y`      ||
+|  07|   4D |             |`STA result` ||
+|  08|   E0 |             |`OUT`        |Print result|
+|  09|   60 |             |`JMP top`    |Loop|
+|  0A|   -- |             |             ||
+|  0B|   -- |             |             ||
+|  0C|   01 |`one`        |`DATA: 1`    ||
+|  0D|   00 |`result`     |`DATA: 0`    ||
+|  0E|   03 |`x`          |`DATA: 3`    ||
+|  0F|   0E |`y`          |`DATA: y`    ||
+
