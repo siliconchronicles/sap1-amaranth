@@ -1,9 +1,11 @@
-# FPGA SAP-1
+# FPGA based SAP-1 in Amaranth HDL
+
+I test this project on a Sipeed Tang Nano 20K board. I have successfully made it work on a Nano 9K in the past.
 
 ## Setup
 
-- Run `uv sync`. That will ensure installing correct libraries
-- After the first uv run, set environment variable `YOSYS=$(pwd)/.venv/bin/yowasp-yosys`, to use the provided version of yosys (rather than building one).
+- Run `uv sync`. That will ensure the installation of the correct libraries
+- After the first `uv` run, set environment variable `YOSYS=$(pwd)/.venv/bin/yowasp-yosys`, to use the provided version of `yosys` (The alternative is building one yourself).
 
 ## Development
 
@@ -20,3 +22,9 @@
   - This will also **upload** the synthesized result to the device RAM
   - Use `-f` to persist the config to flash.
 
+## Other resources and links
+
+- This project was [presented at PyConJP2025](https://2025.pycon.jp/en/timetable/talk/8EAGDB)
+- Other projects/demos at my [📽️ YouTube channel](https://www.youtube.com/@dmoisset)
+- Original design from: *Albert Paul Malvino, “Digital Computer Electronics”. Copyright © McGraw-Hill, Inc. 1977.*
+- [Amaranth docs](https://amaranth-lang.org/docs/amaranth/)
