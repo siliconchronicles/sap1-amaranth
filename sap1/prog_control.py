@@ -1,4 +1,4 @@
-from amaranth import Module, Signal
+from amaranth import Module, Signal, Mux
 from amaranth.lib import wiring, enum
 
 from fpga_io.button import Button
@@ -50,7 +50,10 @@ class ProgrammingControl(wiring.Component):
         # Clock is held while the mode button is pressed (i.e. during switching), 1 cycle
         # later and all the time while in programming mode:
         m.d.comb += self.is_programming.eq(mode.is_pressed_long | programming_toggle)
+        
         # Clock enable is triggered when buttons are released
+        # Note that this is written in a way that there will be no strobe going out of
+        # programming mode
         m.d.comb += self.trigger.eq(
             self.is_programming
             & (mode.release_strobe | next.release_strobe | write.release_strobe)
@@ -61,17 +64,16 @@ class ProgrammingControl(wiring.Component):
         with m.If(programming_toggle):
             # Everything here is set combinationally. The effects of all of these
             # signals are depending on `trigger` enabling the clock signal for the CPU
+ 
+            # Bus is driven from switches (except while toggling modes, where PC is driven to MAR)
+            m.d.comb += self.bus_source.eq(Mux(mode.delay, BusSource.PC, BusSource.INPUT))
             with m.If(mode.delay):
-                # mode button: copy PC to MAR, reset
-                m.d.comb += [
-                    self.bus_source.eq(BusSource.PC),
-                    self.bus_dest.eq(BusDest.MAR),
-                ]
+                # mode button: copy PC to MAR
+                m.d.comb += self.bus_dest.eq(BusDest.MAR)
             with m.Elif(write.delay):
-                m.d.comb += [
-                    self.bus_source.eq(BusSource.INPUT),
-                    self.bus_dest.eq(BusDest.RAM),
-                ]
+                # write button: copy switches to RAM at MAR
+                m.d.comb += self.bus_dest.eq(BusDest.RAM)
+
             # addr_inc is set while mode button is not held/releasing
             # Note that the increment will be delayed until the trigger
             m.d.comb += self.addr_inc.eq(~mode.is_pressed_long)

@@ -158,17 +158,23 @@ class CounterWidget(RegisterWidget):
 
 
 def make_counter(
-    m: Module, color: tuple[int, int, int], source: wiring.Component, read: Value
+    m: Module,
+    color: tuple[int, int, int],
+    source: wiring.Component,
+    read: Value | None = None,
+    flip: bool = False,
 ) -> CounterWidget:
 
     reg_widget = CounterWidget(color, len(source.data_out))
 
     m.d.comb += [
-        reg_widget.reg.eq(source.data_out),
+        reg_widget.reg.eq(source.data_out if not flip else source.data_out[::-1]),
         reg_widget.reg_count.eq(source.count_enable),
-        reg_widget.reg_read.eq(read),
         reg_widget.reg_write.eq(source.write_enable),
     ]
+    if read is not None:
+        m.d.comb += reg_widget.reg_read.eq(read)
+
     return reg_widget
 
 

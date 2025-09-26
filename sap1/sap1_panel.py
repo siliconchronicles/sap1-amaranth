@@ -65,7 +65,7 @@ class SAP1Panel(wiring.Component):
             m, (0, 0, 2), (16 >> sap1.u_sequencer), write=sap1.halted
         )
         pc_widget = make_counter(
-            m, (3, 2, 2), sap1.program_counter, read=sap1.data_bus.is_selected("pc")
+            m, (2, 3, 3), sap1.program_counter, read=sap1.data_bus.is_selected("pc")
         )
         ir_data_widget = make_register(
             m,
@@ -89,6 +89,12 @@ class SAP1Panel(wiring.Component):
             read=sap1.data_bus.is_selected("pc"),
             write=sap1.data_bus.is_writing("pc"),
         )
+        mar_indicator = make_register(
+            m,
+            (0, 0, 1),
+            sap1.memory_address_register.count_enable,
+            write=sap1.data_bus.is_writing("memory_address"),
+        )
         indicators = [
             self.bus_indicator(m, "output"),
             make_register(m, (0, 0, 0), C(0), write=sap1.alu.update_flags),
@@ -97,7 +103,7 @@ class SAP1Panel(wiring.Component):
             self.bus_indicator(m, "a"),
             self.bus_indicator(m, "instruction"),
             self.bus_indicator(m, "memory"),
-            self.bus_indicator(m, "memory_address"),
+            mar_indicator,
             pc_indicator,
         ]
 
@@ -122,7 +128,7 @@ class SAP1Panel(wiring.Component):
         ]
         m.submodules.memory_sequence = SequenceWidget(
             ram_widget,
-            make_register(m, (1, 1, 1), sap1.memory_address_register, flip=True),
+            make_counter(m, (2, 2, 2), sap1.memory_address_register, flip=True),
         )
         m.submodules.panel_ram = LEDPanel()
         m.d.comb += self.mem_dout.eq(m.submodules.panel_ram.dout)
