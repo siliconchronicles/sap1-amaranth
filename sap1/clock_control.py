@@ -84,8 +84,8 @@ class ClockControl(wiring.Component):
                     wait.eq(self.MAX_WAIT),
                 ]
 
-            # Handle "slow" button: go to single-step mode
-            with m.If(slow_b.press_strobe):
+            # Handle "slow" button: go to single-step mode. Programming also pauses
+            with m.If(slow_b.press_strobe | self.override_enable):
                 m.d.sync += [
                     run_speed.eq(0),
                     wait.eq(self.MAX_WAIT),
