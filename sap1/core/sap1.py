@@ -5,9 +5,12 @@ from .counter_register import CounterRegister
 from .data_bus import DataControlBus
 from .partial_register import PartialRegister
 from .register import Register
+from .input_register import InputRegister
 from .alu import ALU
 from .memory import RAM
 from . import microcode
+
+from ..prog_control import BusSource, BusDest
 
 DATA_BUS_WIDTH = 8
 ADDRESS_BUS_WIDTH = 4
@@ -20,8 +23,14 @@ class SAP1(wiring.Component):
     uINSTRUCTIONS_PER_INSTRUCTION = 5
 
     display: wiring.Out(DATA_BUS_WIDTH)
-
     halted: wiring.Out(1)
+
+    # Inputs for the programming interface
+    bus_src_override: wiring.In(BusSource)
+    bus_dst_override: wiring.In(BusDest)
+    programming_mode: wiring.In(1)
+    addr_inc_override: wiring.In(1)
+    input_switches: wiring.In(DATA_BUS_WIDTH)
 
     def __init__(self, program: object = None) -> None:
         self.register_a = Register(DATA_BUS_WIDTH)
@@ -29,9 +38,11 @@ class SAP1(wiring.Component):
         self.program_counter = CounterRegister(ADDRESS_BUS_WIDTH)
         self.instruction_register = PartialRegister(DATA_BUS_WIDTH, ADDRESS_BUS_WIDTH)
 
-        self.memory_address_register = Register(ADDRESS_BUS_WIDTH)
+        # Note: MAR is a counter because the programming interface can increment it
+        self.memory_address_register = CounterRegister(ADDRESS_BUS_WIDTH)
 
         self.output_register = Register(DATA_BUS_WIDTH)
+        self.input_register = InputRegister(DATA_BUS_WIDTH)
 
         self.alu = ALU(DATA_BUS_WIDTH)
 
@@ -45,6 +56,7 @@ class SAP1(wiring.Component):
                 "instruction": self.instruction_register,
                 "memory": self.memory,
                 "alu": self.alu,  # read-only
+                "input": self.input_register,  # read-only
             },
             {
                 "a": self.register_a,
@@ -76,6 +88,7 @@ class SAP1(wiring.Component):
             "instruction_register",
             "memory_address_register",
             "output_register",
+            "input_register",
         ):
             m.submodules[component_name] = getattr(self, component_name)
 
@@ -102,14 +115,11 @@ class SAP1(wiring.Component):
         ]
 
         # Microinstruction steps moves forwards/reset unless halted
-        with m.If(~self.halted):
+        with m.If(~self.halted & ~self.programming_mode):
             with m.If(self.u_sequencer == self.uINSTRUCTIONS_PER_INSTRUCTION - 1):
                 m.d.sync += self.u_sequencer.eq(0)
             with m.Else():
                 m.d.sync += self.u_sequencer.eq(self.u_sequencer + 1)
-        with m.Else():
-            # If halted, stay halted
-            m.d.sync += self.halted.eq(1)
 
         ## FIXED CONTROL
         with m.Switch(self.u_sequencer):
@@ -122,6 +132,30 @@ class SAP1(wiring.Component):
                 m.d.comb += self.program_counter.count_enable.eq(1)
             with m.Default():
                 self.decode_and_execute(m)
+
+        ## Programming interface overrides
+        m.d.comb += self.input_register.value.eq(self.input_switches)
+        with m.If(self.programming_mode):
+            m.d.sync += [
+                self.halted.eq(0),
+                self.u_sequencer.eq(0),
+            ]
+        with m.If(self.addr_inc_override):
+            m.d.comb += [
+                self.program_counter.count_enable.eq(1),
+                self.memory_address_register.count_enable.eq(1),
+            ]
+        with m.Switch(self.bus_src_override):
+            with m.Case(BusSource.PC):
+                m.d.comb += self.data_bus.select_input("pc")
+            with m.Case(BusSource.INPUT):
+                m.d.comb += self.data_bus.select_input("input")
+        with m.Switch(self.bus_dst_override):
+            with m.Case(BusDest.MAR):
+                m.d.comb += self.data_bus.select_outputs("memory_address")
+            with m.Case(BusDest.RAM):
+                m.d.comb += self.data_bus.select_outputs("memory")
+
         return m
 
     def decode_and_execute(self, m: Module) -> None:
@@ -170,4 +204,4 @@ if __name__ == "__main__":
         0x63,  # JMP 3
     ]
     sap1 = SAP1(FIBONACCI)
-    main(sap1, ports=[])
+    main(sap1, ports=[sap1.display])
