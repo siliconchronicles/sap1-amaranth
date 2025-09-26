@@ -25,16 +25,15 @@ class ProgrammingControl(wiring.Component):
 
     # Outputs
 
-    # While `clock_hold` is asserted, this component drives the clock enable
+    # While `is_programming` is asserted, this component drives the clock enable
     # through the `trigger` signal.
-    clock_hold: wiring.Out(1)
+    is_programming: wiring.Out(1)
     trigger: wiring.Out(1)  # produce a clock pulse when asserted
 
     # Control signals for SAP-1. These should override the usual ones
     bus_source: wiring.Out(BusSource, init=BusSource.NONE)
     bus_dest: wiring.Out(BusDest, init=BusDest.NONE)
     addr_inc: wiring.Out(1)  # PC and MAR to be increased
-    ctrl_reset: wiring.Out(1)  # Signals to clear halt and sequencer
 
     def elaborate(self, platform):
         m = Module()
@@ -50,10 +49,10 @@ class ProgrammingControl(wiring.Component):
 
         # Clock is held while the mode button is pressed (i.e. during switching), 1 cycle
         # later and all the time while in programming mode:
-        m.d.comb += self.clock_hold.eq(mode.is_pressed_long | programming_toggle)
+        m.d.comb += self.is_programming.eq(mode.is_pressed_long | programming_toggle)
         # Clock enable is triggered when buttons are released
         m.d.comb += self.trigger.eq(
-            self.clock_hold
+            self.is_programming
             & (mode.release_strobe | next.release_strobe | write.release_strobe)
         )
 
@@ -67,7 +66,6 @@ class ProgrammingControl(wiring.Component):
                 m.d.comb += [
                     self.bus_source.eq(BusSource.PC),
                     self.bus_dest.eq(BusDest.MAR),
-                    self.ctrl_reset.eq(1),
                 ]
             with m.Elif(write.delay):
                 m.d.comb += [
@@ -125,12 +123,11 @@ if __name__ == "__main__":
             m.sw_mode,
             m.sw_next,
             m.sw_write,
-            m.clock_hold,
+            m.is_programming,
             m.trigger,
             m.bus_source,
             m.bus_dest,
             m.addr_inc,
-            m.ctrl_reset,
         ],
     ):
         sim.run()

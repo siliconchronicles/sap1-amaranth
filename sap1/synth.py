@@ -11,6 +11,7 @@ from dev_boards.tang_nano_20k import TangNano20kPlatform
 
 from .core.sap1 import SAP1
 from .clock_control import ClockControl
+from .prog_control import ProgrammingControl
 
 
 class SAP1_Nano(TangNano20kPlatform):
@@ -94,9 +95,10 @@ class TangGlue(wiring.Elaboratable):
         "fast": 2,
     }
 
-    def __init__(self, sap1, clock_control, front_panel: Module, *args, **kwargs):
+    def __init__(self, sap1, clock_control, prog_control, front_panel: Module, *args, **kwargs):
         self.sap1 = sap1
         self.clock_control = clock_control
+        self.prog_control = prog_control
         self.front_panel: SwitchScanner = front_panel.submodules.scanner
         super().__init__(*args, **kwargs)
 
@@ -147,9 +149,23 @@ class TangGlue(wiring.Elaboratable):
                 self.clock_control.slow.eq(self.front_panel.status[self.LAYOUT["slow"]]),
                 self.clock_control.fast.eq(self.front_panel.status[self.LAYOUT["fast"]]),
             ]
-
-
         m.d.comb += self.clock_control.hlt.eq(sap1.halted)
+
+        # Connect programming controls
+        m.d.comb += [
+            self.prog_control.sw_mode.eq(self.front_panel.status[self.LAYOUT["mode"]]),
+            self.prog_control.sw_next.eq(self.front_panel.status[self.LAYOUT["next"]]),
+            self.prog_control.sw_write.eq(self.front_panel.status[self.LAYOUT["write"]]),
+        ]
+        # The clock outputs manage the clock_control module
+        m.d.comb += [
+            self.clock_control.override_enable.eq(self.prog_control.is_programming),
+            self.clock_control.override_trigger.eq(self.prog_control.trigger),
+            sap1.programming_mode.eq(self.prog_control.is_programming),
+            sap1.bus_src_override.eq(self.prog_control.bus_source),
+            sap1.bus_dst_override.eq(self.prog_control.bus_dest),
+            sap1.addr_inc_override.eq(self.prog_control.addr_inc),
+        ]
 
         return m
 
@@ -183,8 +199,9 @@ if __name__ == "__main__":
     m.submodules.front_panel = front_panel = clocked_scanner()
 
     m.submodules.clock_control = cc = ClockControl()
+    m.submodules.prog_control = prog_control = ProgrammingControl()
     m.submodules.sap1 = sap1 = cc.apply_to(SAP1(MULTIPLY_PROG))
-    m.submodules.glue = TangGlue(sap1, cc, front_panel)
+    m.submodules.glue = TangGlue(sap1, cc, prog_control, front_panel)
     m.submodules.panel_glue = SAP1Panel(sap1)
 
     m.d.comb += platform.request("panel_alu").o.eq(m.submodules.panel_glue.alu_dout)
