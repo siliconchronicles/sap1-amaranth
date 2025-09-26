@@ -16,6 +16,7 @@ if __name__ == "__main__":
         platform.build(
             m,
             do_program=False,
+            add_preferences='CLOCK_LOC "clk27_0__io" BUFG;',  # Put clock in global network
         )
     else:
         main(
