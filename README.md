@@ -25,6 +25,7 @@ I test this project on a Sipeed Tang Nano 20K board. I have successfully made it
 ## Other resources and links
 
 - This project was [presented at PyConJP2025](https://2025.pycon.jp/en/timetable/talk/8EAGDB)
+  - I used [these Google Slides Deck](https://docs.google.com/presentation/d/1BULsBG7LKqRdpkx6XBmcOwojQJa6xy-QFifHeZ7gh1s/edit?slide=id.g35f391192_00#slide=id.g35f391192_00)  
 - Other projects/demos at my [📽️ YouTube channel](https://www.youtube.com/@dmoisset)
 - Original design from: *Albert Paul Malvino, “Digital Computer Electronics”. Copyright © McGraw-Hill, Inc. 1977.*
 - [Amaranth docs](https://amaranth-lang.org/docs/amaranth/)
